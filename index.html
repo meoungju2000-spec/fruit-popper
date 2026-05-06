@@ -15,7 +15,7 @@
 
         body {
             overflow: hidden;
-            background: #0d0d0d;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             font-family: 'Nunito', sans-serif;
         }
 
@@ -26,12 +26,12 @@
         }
 
         video {
-            transform: scaleX(-1);
+            /* 화면에는 보이지 않지만 MediaPipe가 추적할 수 있도록 DOM에는 유지 */
             position: absolute;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.35;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
         }
 
         canvas {
@@ -156,9 +156,12 @@ let combo     = 1;
 let lastPopTime = 0;
 let handX     = -999;
 let handY     = -999;
+let prevHandX = -999;
+let prevHandY = -999;
 let handVisible = false;
 let fruits    = [];
 let particles = [];
+let handTrail = [];   // 칼 잔상
 let comboPopTimer = null;
 
 // 이모지 과일 목록
@@ -167,12 +170,15 @@ const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','
 // ---------- Fruit 클래스 ----------
 class Fruit {
     constructor() {
-        this.radius  = 38 + Math.random() * 14;
-        this.x       = Math.random() * (canvas.width  - 120) + 60;
-        this.y       = -60;
-        this.speedY  = 2.2 + Math.random() * 2.2;
-        this.speedX  = (Math.random() - 0.5) * 1.2;
-        this.spin    = (Math.random() - 0.5) * 0.06;
+        // 크기 다양화: 작은 과일(25)부터 큰 과일(90)까지
+        this.radius  = 25 + Math.random() * 65;
+        this.x       = Math.random() * (canvas.width  - 200) + 100;
+        this.y       = -80;
+        // 낙하 속도 빠르게 (작은 과일은 더 빨리 떨어지도록 살짝 보정)
+        const sizeBoost = 1 + (90 - this.radius) / 100; // 작을수록 빠르게
+        this.speedY  = (4.0 + Math.random() * 3.5) * sizeBoost;
+        this.speedX  = (Math.random() - 0.5) * 2.0;
+        this.spin    = (Math.random() - 0.5) * 0.08;
         this.angle   = 0;
         this.emoji   = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
         this.isPopped = false;
@@ -277,30 +283,61 @@ function showComboPopup(c) {
     }, 900);
 }
 
-// ---------- 손 조준점 그리기 ----------
-function drawCrosshair(x, y) {
-    const r = 18;
-    const gap = 6;
+// ---------- 칼 + 슬라이싱 잔상 ----------
+function drawSword(x, y) {
+    const now = Date.now();
+
+    // 잔상 좌표 추가 & 오래된 점 제거 (250ms)
+    handTrail.push({ x, y, t: now });
+    handTrail = handTrail.filter(p => now - p.t < 250);
+
+    // 슬라이싱 잔상 (Fruit Ninja 스타일)
+    if (handTrail.length > 1) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < handTrail.length; i++) {
+            const a = handTrail[i];
+            const b = handTrail[i - 1];
+            const ageRatio = 1 - (now - a.t) / 250; // 1(최신) → 0(오래됨)
+            // 외곽 글로우
+            ctx.strokeStyle = `rgba(120, 220, 255, ${ageRatio * 0.35})`;
+            ctx.lineWidth = 22 * ageRatio;
+            ctx.shadowColor = '#7DDFFF';
+            ctx.shadowBlur = 25;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+            // 안쪽 흰색 코어
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${ageRatio * 0.95})`;
+            ctx.lineWidth = 6 * ageRatio;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // 칼 이모지 (이동 방향에 맞춰 회전)
+    const dx = x - prevHandX;
+    const dy = y - prevHandY;
+    const moving = Math.hypot(dx, dy) > 2;
+    const angle = moving ? Math.atan2(dy, dx) : -Math.PI / 4;
 
     ctx.save();
-    ctx.strokeStyle = '#FF4444';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#FF0000';
-    ctx.shadowBlur = 10;
-
-    // 십자선
-    ctx.beginPath();
-    ctx.moveTo(x - r, y); ctx.lineTo(x - gap, y);
-    ctx.moveTo(x + gap, y); ctx.lineTo(x + r, y);
-    ctx.moveTo(x, y - r); ctx.lineTo(x, y - gap);
-    ctx.moveTo(x, y + gap); ctx.lineTo(x, y + r);
-    ctx.stroke();
-
-    // 원
-    ctx.beginPath();
-    ctx.arc(x, y, gap - 1, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,68,68,0.7)';
-    ctx.fill();
+    ctx.translate(x, y);
+    // 캔버스가 CSS로 좌우 반전돼있으니 이모지를 다시 뒤집어 정상 방향으로
+    ctx.scale(-1, 1);
+    ctx.rotate(-angle); // 좌우 반전 보정
+    ctx.font = '64px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 8;
+    ctx.fillText('🗡️', 0, 0);
     ctx.restore();
 }
 
@@ -322,13 +359,21 @@ hands.onResults((results) => {
     // 손 감지
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const tip = results.multiHandLandmarks[0][8]; // 검지 끝
+        prevHandX = handX;
+        prevHandY = handY;
         handX = tip.x * canvas.width;
         handY = tip.y * canvas.height;
+        if (!handVisible) {
+            // 첫 등장 시 prev 좌표 초기화
+            prevHandX = handX;
+            prevHandY = handY;
+        }
         handVisible = true;
-        drawCrosshair(handX, handY);
-        statusEl.textContent = '☝️ 손가락으로 과일을 터뜨리세요!';
+        drawSword(handX, handY);
+        statusEl.textContent = '🗡️ 칼을 휘둘러 과일을 베세요!';
     } else {
         handVisible = false;
+        handTrail = []; // 손 사라지면 잔상 제거
         statusEl.textContent = '✋ 손을 카메라에 보여주세요';
     }
 
