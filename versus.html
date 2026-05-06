@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍎 Fruit Popper VS - 2P 대결</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Nunito', sans-serif;
+            color: white;
+        }
+
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+
+        video {
+            position: absolute;
+            width: 1px; height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            transform: scaleX(-1);
+            width: 100%; height: 100%;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px 30px;
+            pointer-events: none;
+        }
+
+        .player-hud {
+            background: rgba(0,0,0,0.6);
+            border: 2px solid;
+            border-radius: 16px;
+            padding: 12px 22px;
+            backdrop-filter: blur(6px);
+            min-width: 200px;
+        }
+        #p1-hud { border-color: #FF6B6B; }
+        #p2-hud { border-color: #4ECDC4; text-align: right; }
+
+        .player-label {
+            font-size: 12px;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+        #p1-hud .player-label { color: #FF6B6B; }
+        #p2-hud .player-label { color: #4ECDC4; }
+
+        .player-score {
+            font-family: 'Fredoka One', cursive;
+            font-size: 42px;
+            line-height: 1;
+            margin-top: 4px;
+        }
+
+        .player-combo { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+
+        #center-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #timer-box {
+            background: rgba(0,0,0,0.7);
+            border: 2px solid rgba(255,215,64,0.6);
+            border-radius: 16px;
+            padding: 10px 24px;
+            text-align: center;
+            backdrop-filter: blur(6px);
+        }
+        #timer-label {
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: rgba(255,215,64,0.8);
+        }
+        #timer-value {
+            font-family: 'Fredoka One', cursive;
+            font-size: 38px;
+            color: #FFD740;
+            line-height: 1;
+        }
+
+        #pauseBtn {
+            pointer-events: auto;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 999px;
+            padding: 6px 14px;
+            color: rgba(255,255,255,0.85);
+            font-family: 'Nunito', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+        }
+        #pauseBtn:hover { background: rgba(0,0,0,0.85); }
+
+        #status {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 999px;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 가운데 분할선 */
+        #divider {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom,
+                rgba(255,107,107,0.4) 0%,
+                rgba(255,255,255,0.15) 50%,
+                rgba(78,205,196,0.4) 100%);
+            z-index: 5;
+            pointer-events: none;
+        }
+        #divider::before, #divider::after {
+            content: 'VS';
+            position: absolute;
+            left: -22px;
+            width: 46px;
+            text-align: center;
+            font-family: 'Fredoka One', cursive;
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+        }
+        #divider::before { top: 30%; }
+        #divider::after { bottom: 30%; }
+
+        /* 오버레이 공통 */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background: rgba(10, 10, 25, 0.88);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .overlay h1 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 56px;
+            color: #FFD740;
+            margin-bottom: 16px;
+            text-shadow: 0 0 30px rgba(255,215,64,0.5);
+        }
+
+        .overlay p {
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 640px;
+            margin-bottom: 10px;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .overlay strong.p1 { color: #FF6B6B; }
+        .overlay strong.p2 { color: #4ECDC4; }
+
+        .overlay button.primary {
+            margin-top: 20px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 24px;
+            background: linear-gradient(135deg, #FFD740, #FF8A00);
+            border: none;
+            padding: 16px 52px;
+            border-radius: 999px;
+            color: #1a1a2e;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(255,138,0,0.4);
+            transition: transform 0.15s;
+        }
+        .overlay button.primary:hover { transform: scale(1.05); }
+        .overlay button.primary:active { transform: scale(0.97); }
+
+        /* 도구 선택 박스 */
+        .tool-pick-row {
+            display: flex;
+            gap: 24px;
+            margin: 24px 0 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tool-pick {
+            border: 2px solid;
+            border-radius: 18px;
+            padding: 16px 22px;
+            min-width: 240px;
+            background: rgba(0,0,0,0.4);
+        }
+        .tool-pick.p1 { border-color: #FF6B6B; }
+        .tool-pick.p2 { border-color: #4ECDC4; }
+
+        .tool-pick-title {
+            font-family: 'Fredoka One', cursive;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .tool-pick.p1 .tool-pick-title { color: #FF6B6B; }
+        .tool-pick.p2 .tool-pick-title { color: #4ECDC4; }
+
+        .tool-options { display: flex; gap: 10px; justify-content: center; }
+
+        .tool-opt {
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 14px;
+            padding: 14px 18px;
+            min-width: 100px;
+            transition: all 0.15s;
+        }
+        .tool-opt:hover { background: rgba(255,255,255,0.1); }
+        .tool-opt .emoji { font-size: 36px; line-height: 1; }
+        .tool-opt .name { font-size: 13px; margin-top: 6px; opacity: 0.85; }
+
+        .tool-pick.p1 .tool-opt.selected {
+            background: rgba(255,107,107,0.25);
+            border-color: #FF6B6B;
+            box-shadow: 0 0 18px rgba(255,107,107,0.4);
+        }
+        .tool-pick.p2 .tool-opt.selected {
+            background: rgba(78,205,196,0.25);
+            border-color: #4ECDC4;
+            box-shadow: 0 0 18px rgba(78,205,196,0.4);
+        }
+
+        /* 결과 화면 */
+        .winner-block {
+            display: flex;
+            gap: 50px;
+            margin: 24px 0;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .winner-card {
+            padding: 24px 38px;
+            border-radius: 20px;
+            border: 3px solid;
+            min-width: 200px;
+            transition: all 0.3s;
+        }
+        .winner-card.p1 { border-color: #FF6B6B; }
+        .winner-card.p2 { border-color: #4ECDC4; }
+        .winner-card.win {
+            background: rgba(255,215,64,0.15);
+            border-color: #FFD740;
+            transform: scale(1.1);
+            box-shadow: 0 0 60px rgba(255,215,64,0.5);
+        }
+        .winner-card.lose { opacity: 0.45; }
+
+        .winner-name { font-size: 14px; letter-spacing: 2px; opacity: 0.75; }
+        .winner-score {
+            font-family: 'Fredoka One', cursive;
+            font-size: 56px;
+            margin-top: 8px;
+        }
+        .crown {
+            font-size: 32px;
+            margin-bottom: 6px;
+            display: block;
+            opacity: 0;
+        }
+        .winner-card.win .crown { opacity: 1; }
+
+        /* 일시정지 화면 */
+        #pause-screen h1 { font-size: 48px; }
+        #pause-screen .pause-tip {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 6px;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="divider" class="hidden"></div>
+
+    <div id="hud" class="hidden">
+        <div class="player-hud" id="p1-hud">
+            <div class="player-label">🔴 PLAYER 1 (왼쪽) <span id="p1-tool-icon">🗡️</span></div>
+            <div class="player-score" id="p1-score">0</div>
+            <div class="player-combo" id="p1-combo">콤보 x1</div>
+        </div>
+        <div id="center-controls">
+            <div id="timer-box">
+                <div id="timer-label">TIME</div>
+                <div id="timer-value">60</div>
+            </div>
+            <button id="pauseBtn">⏸ 일시정지 (Space)</button>
+        </div>
+        <div class="player-hud" id="p2-hud">
+            <div class="player-label"><span id="p2-tool-icon">🗡️</span> PLAYER 2 (오른쪽) 🟢</div>
+            <div class="player-score" id="p2-score">0</div>
+            <div class="player-combo" id="p2-combo">콤보 x1</div>
+        </div>
+    </div>
+
+    <div id="status">📷 카메라 연결 중...</div>
+
+    <!-- 시작 화면 -->
+    <div class="overlay" id="start-screen">
+        <h1>🍎 FRUIT POPPER VS</h1>
+        <p>두 명이 함께 카메라 앞에 서서 떨어지는 과일을 잘라요!</p>
+        <p>화면 <strong class="p1">왼쪽 = PLAYER 1 (빨강)</strong> · <strong class="p2">오른쪽 = PLAYER 2 (청록)</strong></p>
+        <p style="opacity:0.75;">본인 영역 안의 과일만 점수가 됩니다. <strong>60초</strong> 안에 더 많이 잡으면 승!</p>
+
+        <div class="tool-pick-row">
+            <div class="tool-pick p1">
+                <div class="tool-pick-title">🔴 PLAYER 1 도구</div>
+                <div class="tool-options" data-player="1">
+                    <div class="tool-opt selected" data-tool="knife">
+                        <div class="emoji">🗡️</div>
+                        <div class="name">칼</div>
+                    </div>
+                    <div class="tool-opt" data-tool="gun">
+                        <div class="emoji">🔫</div>
+                        <div class="name">총</div>
+                    </div>
+                </div>
+            </div>
+            <div class="tool-pick p2">
+                <div class="tool-pick-title">🟢 PLAYER 2 도구</div>
+                <div class="tool-options" data-player="2">
+                    <div class="tool-opt selected" data-tool="knife">
+                        <div class="emoji">🗡️</div>
+                        <div class="name">칼</div>
+                    </div>
+                    <div class="tool-opt" data-tool="gun">
+                        <div class="emoji">🔫</div>
+                        <div class="name">총</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p style="opacity:0.55; font-size:13px; margin-top:6px;">
+            칼 = 휘둘러서 베기 / 총 = 손가락이 과일에 닿으면 자동 사격
+        </p>
+        <p style="opacity:0.55; font-size:13px;">💡 일시정지는 Space 키 또는 화면 ⏸ 버튼</p>
+
+        <button id="startBtn" class="primary">▶ 게임 시작</button>
+    </div>
+
+    <!-- 일시정지 화면 -->
+    <div class="overlay hidden" id="pause-screen">
+        <h1>⏸ 일시정지</h1>
+        <p>Space 키 또는 아래 버튼으로 다시 시작하세요</p>
+        <button id="resumeBtn" class="primary">▶ 재개하기</button>
+        <button id="quitBtn" style="margin-top:12px; background:transparent; border:1px solid rgba(255,255,255,0.3); color:rgba(255,255,255,0.7); padding:10px 24px; border-radius:999px; font-size:14px; cursor:pointer;">처음으로</button>
+        <div class="pause-tip">현재 점수는 유지되며, 타이머만 멈춥니다</div>
+    </div>
+
+    <!-- 결과 화면 -->
+    <div class="overlay hidden" id="end-screen">
+        <h1 id="winner-title">🏆 WINNER!</h1>
+        <div class="winner-block">
+            <div class="winner-card p1" id="end-p1-card">
+                <span class="crown">👑</span>
+                <div class="winner-name">🔴 PLAYER 1</div>
+                <div class="winner-score" id="end-p1-score">0</div>
+            </div>
+            <div style="font-family:'Fredoka One',cursive; font-size:32px; opacity:0.5;">VS</div>
+            <div class="winner-card p2" id="end-p2-card">
+                <span class="crown">👑</span>
+                <div class="winner-name">🟢 PLAYER 2</div>
+                <div class="winner-score" id="end-p2-score">0</div>
+            </div>
+        </div>
+        <button id="restartBtn" class="primary">🔄 다시하기</button>
+        <button id="backToStartBtn" style="margin-top:12px; background:transparent; border:1px solid rgba(255,255,255,0.3); color:rgba(255,255,255,0.7); padding:10px 24px; border-radius:999px; font-size:14px; cursor:pointer;">도구 다시 선택</button>
+    </div>
+</div>
+
+<script>
+const video    = document.getElementById('webcam');
+const canvas   = document.getElementById('gameCanvas');
+const ctx      = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const startScreen = document.getElementById('start-screen');
+const pauseScreen = document.getElementById('pause-screen');
+const endScreen   = document.getElementById('end-screen');
+const startBtn    = document.getElementById('startBtn');
+const restartBtn  = document.getElementById('restartBtn');
+const backToStartBtn = document.getElementById('backToStartBtn');
+const pauseBtn    = document.getElementById('pauseBtn');
+const resumeBtn   = document.getElementById('resumeBtn');
+const quitBtn     = document.getElementById('quitBtn');
+const hudEl       = document.getElementById('hud');
+const dividerEl   = document.getElementById('divider');
+const timerEl     = document.getElementById('timer-value');
+
+// ---------- 게임 상태 ----------
+const STATE_IDLE   = 'IDLE';
+const STATE_PLAY   = 'PLAYING';
+const STATE_PAUSE  = 'PAUSED';
+const STATE_END    = 'ENDED';
+let gameState = STATE_IDLE;
+let timeLeft  = 60;
+let timerInterval = null;
+
+const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌'];
+
+// ---------- Player ----------
+class Player {
+    constructor(id, color) {
+        this.id      = id;
+        this.color   = color;
+        this.tool    = 'knife';   // 'knife' | 'gun'
+        this.score   = 0;
+        this.combo   = 1;
+        this.lastPop = 0;
+        this.handX   = -999;
+        this.handY   = -999;
+        this.prevX   = -999;
+        this.prevY   = -999;
+        this.handVisible = false;
+        this._prevVisible = false;
+        this._prevX = -999;
+        this._prevY = -999;
+        this.fruits  = [];
+        this.particles = [];
+        this.trail   = [];
+        this.muzzleFlashes = []; // 총 머즐 플래시
+        this.scoreEl = document.getElementById(`p${id}-score`);
+        this.comboEl = document.getElementById(`p${id}-combo`);
+        this.toolIconEl = document.getElementById(`p${id}-tool-icon`);
+    }
+
+    reset() {
+        this.score = 0;
+        this.combo = 1;
+        this.lastPop = 0;
+        this.fruits = [];
+        this.particles = [];
+        this.trail = [];
+        this.muzzleFlashes = [];
+        this.scoreEl.textContent = '0';
+        this.comboEl.textContent = '콤보 x1';
+    }
+
+    setTool(tool) {
+        this.tool = tool;
+        if (this.toolIconEl) {
+            this.toolIconEl.textContent = tool === 'gun' ? '🔫' : '🗡️';
+        }
+    }
+
+    // canvas는 CSS scaleX(-1)로 좌우반전 → 시각 LEFT = internal RIGHT
+    get xMin() { return this.id === 1 ? canvas.width/2 : 0; }
+    get xMax() { return this.id === 1 ? canvas.width   : canvas.width/2; }
+}
+
+const p1 = new Player(1, '#FF6B6B');
+const p2 = new Player(2, '#4ECDC4');
+const players = [p1, p2];
+
+// ---------- Fruit ----------
+class Fruit {
+    constructor(player) {
+        this.player = player;
+        this.radius = 25 + Math.random() * 60;
+        const margin = 50;
+        this.x = player.xMin + margin + Math.random() * (player.xMax - player.xMin - margin*2);
+        this.y = -80;
+        const sizeBoost = 1 + (90 - this.radius) / 100;
+        this.speedY = (3.5 + Math.random() * 3.0) * sizeBoost;
+        this.speedX = (Math.random() - 0.5) * 1.5;
+        this.spin   = (Math.random() - 0.5) * 0.07;
+        this.angle  = 0;
+        this.emoji  = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+        this.isPopped = false;
+        this.opacity = 1;
+        this.popScale = 1;
+        this.fontSize = this.radius * 1.6;
+    }
+
+    update() {
+        if (!this.isPopped) {
+            this.y += this.speedY;
+            this.x += this.speedX;
+            this.angle += this.spin;
+            if (this.x < this.player.xMin + this.radius) {
+                this.x = this.player.xMin + this.radius;
+                this.speedX *= -1;
+            }
+            if (this.x > this.player.xMax - this.radius) {
+                this.x = this.player.xMax - this.radius;
+                this.speedX *= -1;
+            }
+            if (this.player.handVisible) {
+                const d = Math.hypot(this.x - this.player.handX, this.y - this.player.handY);
+                if (d < this.radius + 18) this.pop();
+            }
+        } else {
+            this.opacity  -= 0.055;
+            this.popScale += 0.08;
+        }
+    }
+
+    pop() {
+        this.isPopped = true;
+        const now = Date.now();
+        if (now - this.player.lastPop < 800) {
+            this.player.combo = Math.min(this.player.combo + 1, 10);
+        } else {
+            this.player.combo = 1;
+        }
+        this.player.lastPop = now;
+        this.player.score += 10 * this.player.combo;
+        this.player.scoreEl.textContent = this.player.score;
+        this.player.comboEl.textContent = `콤보 x${this.player.combo}`;
+        for (let i = 0; i < 12; i++) {
+            this.player.particles.push(new Particle(this.x, this.y, this.emoji));
+        }
+        // 총 모드: 머즐 플래시 추가
+        if (this.player.tool === 'gun') {
+            this.player.muzzleFlashes.push(new MuzzleFlash(
+                this.player.handX, this.player.handY,
+                this.x, this.y
+            ));
+        }
+    }
+
+    draw() {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.opacity);
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.scale(this.popScale, this.popScale);
+        ctx.font = `${this.fontSize}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, 0, 0);
+        ctx.restore();
+    }
+}
+
+// ---------- Particle ----------
+class Particle {
+    constructor(x, y, emoji) {
+        this.x = x; this.y = y;
+        this.vx = (Math.random() - 0.5) * 10;
+        this.vy = (Math.random() - 1.2) * 10;
+        this.life = 1;
+        this.emoji = Math.random() < 0.3 ? '✨' : emoji;
+        this.size  = 14 + Math.random() * 16;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.35;
+        this.life -= 0.04;
+    }
+    draw() {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.font = `${this.size}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+// ---------- 머즐 플래시 (총 발사 효과) ----------
+class MuzzleFlash {
+    constructor(sx, sy, tx, ty) {
+        this.sx = sx; this.sy = sy;
+        this.tx = tx; this.ty = ty;
+        this.life = 1;
+    }
+    update() { this.life -= 0.18; }
+    draw() {
+        if (this.life <= 0) return;
+        ctx.save();
+        // 빛줄기
+        ctx.strokeStyle = `rgba(255, 230, 100, ${this.life * 0.85})`;
+        ctx.lineWidth = 4 + this.life * 6;
+        ctx.shadowColor = '#FFC400';
+        ctx.shadowBlur = 18;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(this.sx, this.sy);
+        ctx.lineTo(this.tx, this.ty);
+        ctx.stroke();
+        // 발사 지점 플래시
+        ctx.fillStyle = `rgba(255, 240, 150, ${this.life})`;
+        ctx.beginPath();
+        ctx.arc(this.sx, this.sy, 14 * this.life, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function hexToRgba(hex, a) {
+    const v = hex.replace('#','');
+    const r = parseInt(v.substring(0,2),16);
+    const g = parseInt(v.substring(2,4),16);
+    const b = parseInt(v.substring(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+}
+
+// ---------- 도구 그리기 ----------
+function drawTool(player) {
+    if (!player.handVisible) { player.trail = []; return; }
+    const x = player.handX, y = player.handY;
+    const now = Date.now();
+
+    // 잔상은 칼만 길게, 총은 짧게
+    const trailLife = player.tool === 'knife' ? 250 : 120;
+    player.trail.push({ x, y, t: now });
+    player.trail = player.trail.filter(p => now - p.t < trailLife);
+
+    if (player.trail.length > 1) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < player.trail.length; i++) {
+            const a = player.trail[i];
+            const b = player.trail[i - 1];
+            const age = 1 - (now - a.t) / trailLife;
+            const baseColor = player.tool === 'gun' ? '#FFC400' : player.color;
+            ctx.strokeStyle = hexToRgba(baseColor, age * 0.4);
+            ctx.lineWidth = (player.tool === 'gun' ? 14 : 22) * age;
+            ctx.shadowColor = baseColor;
+            ctx.shadowBlur = 22;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(255,255,255,${age * 0.95})`;
+            ctx.lineWidth = (player.tool === 'gun' ? 3 : 6) * age;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y); ctx.lineTo(a.x, a.y);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    const dx = x - player.prevX;
+    const dy = y - player.prevY;
+    const moving = Math.hypot(dx, dy) > 2;
+    const angle = moving ? Math.atan2(dy, dx) : -Math.PI / 4;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(-1, 1);    // 캔버스 미러 보정
+    ctx.rotate(-angle);
+    ctx.font = '64px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(player.tool === 'gun' ? '🔫' : '🗡️', 0, 0);
+    ctx.restore();
+}
+
+// ---------- MediaPipe ----------
+const hands = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6
+});
+
+hands.onResults((results) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 이전 프레임 좌표 저장 + 가시성 리셋
+    for (const p of players) {
+        p._prevVisible = p.handVisible;
+        p._prevX = p.handX;
+        p._prevY = p.handY;
+        p.handVisible = false;
+    }
+
+    // 손 → 영역 기반 매핑
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        for (const lm of results.multiHandLandmarks) {
+            const tip = lm[8];
+            const x = tip.x * canvas.width;
+            const y = tip.y * canvas.height;
+            const target = (x >= canvas.width / 2) ? p1 : p2;
+            if (target.handVisible) continue;
+            target.handX = x;
+            target.handY = y;
+            target.handVisible = true;
+            if (target._prevVisible) {
+                target.prevX = target._prevX;
+                target.prevY = target._prevY;
+            } else {
+                target.prevX = x;
+                target.prevY = y;
+            }
+        }
+    }
+
+    // 상태 메시지
+    if (gameState === STATE_PLAY) {
+        if (p1.handVisible && p2.handVisible) {
+            statusEl.textContent = '⚔️ 양쪽 모두 진행 중!';
+        } else if (!p1.handVisible && !p2.handVisible) {
+            statusEl.textContent = '✋ 두 명 모두 손을 카메라에 보여주세요';
+        } else if (!p1.handVisible) {
+            statusEl.textContent = '🔴 Player 1 (왼쪽) 손이 안 보여요';
+        } else {
+            statusEl.textContent = '🟢 Player 2 (오른쪽) 손이 안 보여요';
+        }
+    } else if (gameState === STATE_PAUSE) {
+        statusEl.textContent = '⏸ 일시정지됨';
+    }
+
+    // 게임 진행 중에만 과일 생성/업데이트
+    if (gameState === STATE_PLAY) {
+        for (const p of players) {
+            if (Math.random() < 0.026) p.fruits.push(new Fruit(p));
+            p.fruits = p.fruits.filter(f => {
+                f.update();
+                return f.y < canvas.height + 100 && f.opacity > 0;
+            });
+            p.particles = p.particles.filter(pt => {
+                pt.update();
+                return pt.life > 0;
+            });
+            p.muzzleFlashes = p.muzzleFlashes.filter(m => {
+                m.update();
+                return m.life > 0;
+            });
+        }
+    } else {
+        // PAUSE/IDLE/END 일 때도 머즐 플래시는 자연스레 사라지게
+        for (const p of players) {
+            p.muzzleFlashes = p.muzzleFlashes.filter(m => {
+                m.update();
+                return m.life > 0;
+            });
+        }
+    }
+
+    // 그리기 (PAUSE에서도 현재 상태 보이도록 항상 그림)
+    for (const p of players) {
+        for (const f of p.fruits)    f.draw();
+        for (const pt of p.particles) pt.draw();
+        for (const m of p.muzzleFlashes) m.draw();
+        drawTool(p);
+    }
+});
+
+// ---------- 카메라 ----------
+function startCamera() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+    const camera = new Camera(video, {
+        onFrame: async () => { await hands.send({ image: video }); },
+        width: 1280, height: 720
+    });
+    camera.start().then(() => {
+        statusEl.textContent = '✋ 시작 버튼을 눌러주세요';
+    }).catch(() => {
+        statusEl.textContent = '❌ 카메라 접근 실패 — 브라우저 권한 확인';
+    });
+}
+
+// ---------- 도구 선택 UI ----------
+document.querySelectorAll('.tool-options').forEach(group => {
+    const playerId = parseInt(group.dataset.player);
+    group.querySelectorAll('.tool-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+            group.querySelectorAll('.tool-opt').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            const player = playerId === 1 ? p1 : p2;
+            player.setTool(opt.dataset.tool);
+        });
+    });
+});
+
+// ---------- 게임 흐름 ----------
+function startGame() {
+    p1.reset(); p2.reset();
+    timeLeft = 60;
+    timerEl.textContent = timeLeft;
+    gameState = STATE_PLAY;
+    startScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+    hudEl.classList.remove('hidden');
+    dividerEl.classList.remove('hidden');
+    startTimer();
+}
+
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (gameState !== STATE_PLAY) return;
+        timeLeft -= 1;
+        timerEl.textContent = timeLeft;
+        if (timeLeft <= 0) endGame();
+    }, 1000);
+}
+
+function pauseGame() {
+    if (gameState !== STATE_PLAY) return;
+    gameState = STATE_PAUSE;
+    pauseScreen.classList.remove('hidden');
+}
+
+function resumeGame() {
+    if (gameState !== STATE_PAUSE) return;
+    gameState = STATE_PLAY;
+    pauseScreen.classList.add('hidden');
+}
+
+function backToStart() {
+    gameState = STATE_IDLE;
+    if (timerInterval) clearInterval(timerInterval);
+    pauseScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+    hudEl.classList.add('hidden');
+    dividerEl.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    statusEl.textContent = '✋ 시작 버튼을 눌러주세요';
+}
+
+function endGame() {
+    gameState = STATE_END;
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('end-p1-score').textContent = p1.score;
+    document.getElementById('end-p2-score').textContent = p2.score;
+    const p1Card = document.getElementById('end-p1-card');
+    const p2Card = document.getElementById('end-p2-card');
+    p1Card.classList.remove('win', 'lose');
+    p2Card.classList.remove('win', 'lose');
+    const title = document.getElementById('winner-title');
+    if (p1.score > p2.score) {
+        p1Card.classList.add('win'); p2Card.classList.add('lose');
+        title.textContent = '🏆 PLAYER 1 승!';
+        title.style.color = '#FF6B6B';
+    } else if (p2.score > p1.score) {
+        p2Card.classList.add('win'); p1Card.classList.add('lose');
+        title.textContent = '🏆 PLAYER 2 승!';
+        title.style.color = '#4ECDC4';
+    } else {
+        title.textContent = '🤝 무승부!';
+        title.style.color = '#FFD740';
+    }
+    endScreen.classList.remove('hidden');
+    statusEl.textContent = '게임 종료';
+}
+
+// ---------- 이벤트 ----------
+startBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('click', startGame);
+backToStartBtn.addEventListener('click', backToStart);
+pauseBtn.addEventListener('click', pauseGame);
+resumeBtn.addEventListener('click', resumeGame);
+quitBtn.addEventListener('click', backToStart);
+
+// 스페이스 키 = 일시정지/재개 토글
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+        e.preventDefault();
+        if (gameState === STATE_PLAY) pauseGame();
+        else if (gameState === STATE_PAUSE) resumeGame();
+    }
+});
+
+window.onload = startCamera;
+</script>
+</body>
+</html>
