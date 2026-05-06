@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍎 Fruit Popper!</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            overflow: hidden;
+            background: #0d0d0d;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        video {
+            transform: scaleX(-1);
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.35;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0; left: 0;
+            transform: scaleX(-1);
+            width: 100%;
+            height: 100%;
+        }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px 30px;
+            pointer-events: none;
+        }
+
+        .hud-box {
+            background: rgba(0,0,0,0.55);
+            border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 10px 22px;
+            backdrop-filter: blur(6px);
+        }
+
+        .hud-label {
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.45);
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .hud-value {
+            font-family: 'Fredoka One', cursive;
+            font-size: 38px;
+            color: #fff;
+            line-height: 1;
+        }
+
+        #title-box .hud-value {
+            font-size: 28px;
+            color: #FFD740;
+            letter-spacing: 1px;
+        }
+
+        /* Status badge */
+        #status {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 999px;
+            padding: 8px 20px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 1px;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+        }
+
+        /* Combo popup */
+        #combo-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            font-family: 'Fredoka One', cursive;
+            font-size: 60px;
+            color: #FFD740;
+            text-shadow: 0 0 30px rgba(255,215,64,0.8);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div class="hud-box" id="title-box">
+            <div class="hud-value">🍎 FRUIT POPPER</div>
+        </div>
+        <div class="hud-box">
+            <div class="hud-label">Score</div>
+            <div class="hud-value" id="scoreValue">0</div>
+        </div>
+        <div class="hud-box">
+            <div class="hud-label">Combo</div>
+            <div class="hud-value" id="comboValue">x1</div>
+        </div>
+    </div>
+
+    <div id="combo-popup"></div>
+    <div id="status">📷 카메라 연결 중...</div>
+
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+const video    = document.getElementById('webcam');
+const canvas   = document.getElementById('gameCanvas');
+const ctx      = canvas.getContext('2d');
+const scoreEl  = document.getElementById('scoreValue');
+const comboEl  = document.getElementById('comboValue');
+const statusEl = document.getElementById('status');
+const comboPopEl = document.getElementById('combo-popup');
+
+let score     = 0;
+let combo     = 1;
+let lastPopTime = 0;
+let handX     = -999;
+let handY     = -999;
+let handVisible = false;
+let fruits    = [];
+let particles = [];
+let comboPopTimer = null;
+
+// 이모지 과일 목록
+const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌'];
+
+// ---------- Fruit 클래스 ----------
+class Fruit {
+    constructor() {
+        this.radius  = 38 + Math.random() * 14;
+        this.x       = Math.random() * (canvas.width  - 120) + 60;
+        this.y       = -60;
+        this.speedY  = 2.2 + Math.random() * 2.2;
+        this.speedX  = (Math.random() - 0.5) * 1.2;
+        this.spin    = (Math.random() - 0.5) * 0.06;
+        this.angle   = 0;
+        this.emoji   = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+        this.isPopped = false;
+        this.opacity = 1;
+        this.popScale = 1;
+        this.fontSize = this.radius * 1.6;
+    }
+
+    update() {
+        if (!this.isPopped) {
+            this.y     += this.speedY;
+            this.x     += this.speedX;
+            this.angle += this.spin;
+
+            const dist = Math.hypot(this.x - handX, this.y - handY);
+            if (dist < this.radius + 18 && handVisible) {
+                this.pop();
+            }
+        } else {
+            this.opacity  -= 0.055;
+            this.popScale += 0.08;
+        }
+    }
+
+    pop() {
+        this.isPopped = true;
+
+        const now = Date.now();
+        if (now - lastPopTime < 800) {
+            combo = Math.min(combo + 1, 10);
+        } else {
+            combo = 1;
+        }
+        lastPopTime = now;
+
+        score += 10 * combo;
+        scoreEl.innerText = score;
+        comboEl.innerText = `x${combo}`;
+
+        if (combo >= 3) showComboPopup(combo);
+
+        // 파티클 생성
+        for (let i = 0; i < 12; i++) {
+            particles.push(new Particle(this.x, this.y, this.emoji));
+        }
+    }
+
+    draw() {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.opacity);
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle);
+        ctx.scale(this.popScale, this.popScale);
+
+        ctx.font = `${this.fontSize}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, 0, 0);
+        ctx.restore();
+    }
+}
+
+// ---------- Particle 클래스 ----------
+class Particle {
+    constructor(x, y, emoji) {
+        this.x   = x;
+        this.y   = y;
+        this.vx  = (Math.random() - 0.5) * 10;
+        this.vy  = (Math.random() - 1.2) * 10;
+        this.life = 1;
+        this.emoji = Math.random() < 0.3 ? '✨' : emoji;
+        this.size = 14 + Math.random() * 16;
+    }
+
+    update() {
+        this.x   += this.vx;
+        this.y   += this.vy;
+        this.vy  += 0.35; // gravity
+        this.life -= 0.04;
+    }
+
+    draw() {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.font = `${this.size}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.emoji, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+// ---------- Combo 팝업 ----------
+function showComboPopup(c) {
+    clearTimeout(comboPopTimer);
+    comboPopEl.textContent = `🔥 COMBO x${c}!`;
+    comboPopEl.style.opacity = '1';
+    comboPopTimer = setTimeout(() => {
+        comboPopEl.style.opacity = '0';
+    }, 900);
+}
+
+// ---------- 손 조준점 그리기 ----------
+function drawCrosshair(x, y) {
+    const r = 18;
+    const gap = 6;
+
+    ctx.save();
+    ctx.strokeStyle = '#FF4444';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#FF0000';
+    ctx.shadowBlur = 10;
+
+    // 십자선
+    ctx.beginPath();
+    ctx.moveTo(x - r, y); ctx.lineTo(x - gap, y);
+    ctx.moveTo(x + gap, y); ctx.lineTo(x + r, y);
+    ctx.moveTo(x, y - r); ctx.lineTo(x, y - gap);
+    ctx.moveTo(x, y + gap); ctx.lineTo(x, y + r);
+    ctx.stroke();
+
+    // 원
+    ctx.beginPath();
+    ctx.arc(x, y, gap - 1, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,68,68,0.7)';
+    ctx.fill();
+    ctx.restore();
+}
+
+// ---------- Mediapipe 설정 ----------
+const hands = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+
+hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6
+});
+
+hands.onResults((results) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 손 감지
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const tip = results.multiHandLandmarks[0][8]; // 검지 끝
+        handX = tip.x * canvas.width;
+        handY = tip.y * canvas.height;
+        handVisible = true;
+        drawCrosshair(handX, handY);
+        statusEl.textContent = '☝️ 손가락으로 과일을 터뜨리세요!';
+    } else {
+        handVisible = false;
+        statusEl.textContent = '✋ 손을 카메라에 보여주세요';
+    }
+
+    // 과일 생성 (확률: 프레임당 약 2%)
+    if (Math.random() < 0.022) fruits.push(new Fruit());
+
+    // 과일 업데이트/그리기
+    fruits = fruits.filter(f => {
+        f.update();
+        f.draw();
+        return f.y < canvas.height + 100 && f.opacity > 0;
+    });
+
+    // 파티클 업데이트/그리기
+    particles = particles.filter(p => {
+        p.update();
+        p.draw();
+        return p.life > 0;
+    });
+});
+
+// ---------- 카메라 실행 ----------
+function start() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    const camera = new Camera(video, {
+        onFrame: async () => {
+            await hands.send({ image: video });
+        },
+        width: 1280,
+        height: 720
+    });
+
+    camera.start().then(() => {
+        statusEl.textContent = '✋ 손을 카메라에 보여주세요';
+    }).catch(() => {
+        statusEl.textContent = '❌ 카메라 접근 실패 — 브라우저 권한을 확인하세요';
+    });
+}
+
+window.onload = start;
+</script>
+</body>
+</html>
