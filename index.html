@@ -974,17 +974,20 @@ hands.onResults(results => {
 
     if (MODE==='solo') {
       const lm=detected[0];
-      // 슬래시: 손바닥 중심(0번), 검지: 8번 끝
       const ref = TOOL==='slash' ? palmCenter(lm) : {x:lm[8].x, y:lm[8].y};
       players[0].x=ref.x*canvas.width; players[0].y=ref.y*canvas.height;
       players[0].visible=true;
     } else {
-      const sorted=[...detected].map(lm=>({lm,cx:lm[0].x})).sort((a,b)=>b.cx-a.cx);
-      sorted.slice(0,2).forEach((item,i)=>{
-        const lm=item.lm;
-        const ref = TOOL==='slash' ? palmCenter(lm) : {x:lm[8].x, y:lm[8].y};
-        players[i].x=ref.x*canvas.width; players[i].y=ref.y*canvas.height;
-        players[i].visible=true;
+      // multiHandedness로 Left/Right 구분 → canvas scaleX(-1)이므로
+      // Mediapipe "Right" = 화면 왼쪽 = P1, "Left" = 화면 오른쪽 = P2
+      const handedness = results.multiHandedness || [];
+      detected.forEach((lm, i) => {
+        const label = handedness[i]?.label || '';
+        const pidx  = label === 'Right' ? 0 : 1; // Right손=P1, Left손=P2
+        const ref   = TOOL==='slash' ? palmCenter(lm) : {x:lm[8].x, y:lm[8].y};
+        players[pidx].x       = ref.x * canvas.width;
+        players[pidx].y       = ref.y * canvas.height;
+        players[pidx].visible = true;
       });
     }
 
