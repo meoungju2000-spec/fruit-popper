@@ -10,49 +10,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap');
 
 :root {
-  --p1: #4FC3F7;
-  --p2: #F48FB1;
-  --gold: #FFD740;
-  --bg: #080812;
+  --p1:#4FC3F7; --p2:#F48FB1; --gold:#FFD740; --bg:#080812;
+  --green:#69F0AE; --orange:#FFAB40;
 }
-
 * { margin:0; padding:0; box-sizing:border-box; }
 body { overflow:hidden; background:var(--bg); font-family:'Nunito',sans-serif; cursor:none; }
-
-/* ── 전체 레이어 ── */
 #game-container { position:relative; width:100vw; height:100vh; }
 
 video {
-  transform:scaleX(-1);
-  position:absolute; width:100%; height:100%;
+  transform:scaleX(-1); position:absolute; width:100%; height:100%;
   object-fit:cover; opacity:0; pointer-events:none;
 }
 canvas {
   position:absolute; top:0; left:0;
-  transform:scaleX(-1);
-  width:100%; height:100%;
+  transform:scaleX(-1); width:100%; height:100%;
 }
 
-/* ════════════════════════════════
-   모드 선택 화면
-════════════════════════════════ */
-#screen-menu {
+/* ══════════════════════════════════
+   공통 메뉴 화면
+══════════════════════════════════ */
+.menu-screen {
   position:absolute; inset:0; z-index:50;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
-  gap:0;
-  background: radial-gradient(ellipse at 50% 40%, #1a1030 0%, #080812 70%);
+  background:radial-gradient(ellipse at 50% 40%, #1a1030 0%, #080812 70%);
 }
+.menu-screen.hidden { display:none; }
 
-.menu-fruit-bg {
-  position:absolute; inset:0; overflow:hidden; pointer-events:none;
-}
+.menu-fruit-bg { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
 .menu-fruit-bg span {
-  position:absolute; font-size:clamp(28px,4vw,52px);
-  opacity:0.13; animation:floatFruit linear infinite;
-  user-select:none;
+  position:absolute; opacity:0.12; user-select:none;
+  animation:floatFruit linear infinite;
 }
-
 @keyframes floatFruit {
   from { transform:translateY(110vh) rotate(0deg); }
   to   { transform:translateY(-20vh) rotate(360deg); }
@@ -60,266 +49,247 @@ canvas {
 
 .menu-logo {
   font-family:'Fredoka One',cursive;
-  font-size:clamp(56px,9vw,100px);
-  color:#fff;
-  letter-spacing:2px;
-  text-align:center;
-  line-height:1;
+  font-size:clamp(46px,7.5vw,88px); color:#fff;
+  letter-spacing:2px; text-align:center; line-height:1;
   position:relative; z-index:1;
 }
 .menu-logo span { color:var(--gold); }
 
 .menu-sub {
-  font-size:clamp(13px,1.6vw,18px);
-  color:rgba(255,255,255,0.38);
-  letter-spacing:4px;
-  text-transform:uppercase;
-  margin-top:8px; margin-bottom:52px;
+  font-size:clamp(11px,1.3vw,15px); color:rgba(255,255,255,.35);
+  letter-spacing:4px; text-transform:uppercase;
+  margin-top:8px; margin-bottom:40px;
   position:relative; z-index:1;
 }
 
-.mode-cards {
-  display:flex; gap:24px; position:relative; z-index:1;
-  flex-wrap:wrap; justify-content:center;
-  padding:0 20px;
+.back-btn {
+  position:absolute; top:24px; left:28px; z-index:2;
+  background:rgba(255,255,255,.06); border:1.5px solid rgba(255,255,255,.14);
+  border-radius:12px; padding:8px 18px;
+  font-family:'Fredoka One',cursive; font-size:15px; color:rgba(255,255,255,.55);
+  cursor:pointer; transition:background .15s, color .15s;
+}
+.back-btn:hover { background:rgba(255,255,255,.13); color:#fff; }
+
+.step-indicator { display:flex; gap:8px; margin-bottom:30px; position:relative; z-index:1; }
+.step-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.18); transition:background .3s; }
+.step-dot.active { background:var(--gold); }
+
+.card-row {
+  display:flex; gap:20px; flex-wrap:wrap;
+  justify-content:center; padding:0 20px;
+  position:relative; z-index:1;
 }
 
-.mode-card {
-  width:clamp(200px,28vw,280px);
-  background:rgba(255,255,255,0.04);
-  border:2px solid rgba(255,255,255,0.1);
-  border-radius:24px;
-  padding:36px 28px 32px;
-  display:flex; flex-direction:column; align-items:center; gap:14px;
-  cursor:pointer;
-  transition:transform .2s, border-color .2s, background .2s, box-shadow .2s;
-  position:relative; overflow:hidden;
+.sel-card {
+  width:clamp(175px,23vw,255px);
+  background:rgba(255,255,255,.04); border:2px solid rgba(255,255,255,.1);
+  border-radius:22px; padding:30px 22px 26px;
+  display:flex; flex-direction:column; align-items:center; gap:11px;
+  cursor:pointer; position:relative; overflow:hidden;
+  transition:transform .2s, border-color .2s, box-shadow .2s;
 }
-.mode-card::before {
-  content:''; position:absolute; inset:0; border-radius:22px;
+.sel-card::before {
+  content:''; position:absolute; inset:0; border-radius:20px;
   opacity:0; transition:opacity .2s;
 }
-.mode-card.solo::before  { background:radial-gradient(ellipse at 50% 0%, rgba(79,195,247,.18) 0%, transparent 70%); }
-.mode-card.versus::before{ background:radial-gradient(ellipse at 50% 0%, rgba(244,143,177,.18) 0%, transparent 70%); }
+.sel-card:hover { transform:translateY(-5px) scale(1.03); }
+.sel-card:hover::before { opacity:1; }
 
-.mode-card:hover { transform:translateY(-6px) scale(1.03); }
-.mode-card.solo:hover  { border-color:var(--p1); box-shadow:0 12px 40px rgba(79,195,247,.25); }
-.mode-card.versus:hover{ border-color:var(--p2); box-shadow:0 12px 40px rgba(244,143,177,.25); }
-.mode-card:hover::before { opacity:1; }
+.sel-card.solo::before   { background:radial-gradient(ellipse at 50% 0%,rgba(79,195,247,.2) 0%,transparent 70%); }
+.sel-card.versus::before { background:radial-gradient(ellipse at 50% 0%,rgba(244,143,177,.2) 0%,transparent 70%); }
+.sel-card.finger::before { background:radial-gradient(ellipse at 50% 0%,rgba(105,240,174,.2) 0%,transparent 70%); }
+.sel-card.fist::before   { background:radial-gradient(ellipse at 50% 0%,rgba(255,171,64,.2) 0%,transparent 70%); }
 
-.mode-icon { font-size:52px; line-height:1; }
-.mode-title {
-  font-family:'Fredoka One',cursive;
-  font-size:26px; color:#fff; letter-spacing:1px;
-}
-.mode-card.solo  .mode-title { color:var(--p1); }
-.mode-card.versus .mode-title{ color:var(--p2); }
-.mode-desc {
-  font-size:13px; color:rgba(255,255,255,.45);
-  text-align:center; line-height:1.6;
-}
-.mode-badge {
-  padding:5px 14px;
-  border-radius:999px;
-  font-size:11px; font-weight:900; letter-spacing:2px;
-  text-transform:uppercase; margin-top:4px;
-}
-.mode-card.solo  .mode-badge { background:rgba(79,195,247,.15);  color:var(--p1); }
-.mode-card.versus .mode-badge{ background:rgba(244,143,177,.15); color:var(--p2); }
+.sel-card.solo:hover   { border-color:var(--p1);    box-shadow:0 12px 40px rgba(79,195,247,.25); }
+.sel-card.versus:hover { border-color:var(--p2);    box-shadow:0 12px 40px rgba(244,143,177,.25); }
+.sel-card.finger:hover { border-color:var(--green); box-shadow:0 12px 40px rgba(105,240,174,.25); }
+.sel-card.fist:hover   { border-color:var(--orange);box-shadow:0 12px 40px rgba(255,171,64,.25); }
 
-/* ════════════════════════════════
+.sel-icon  { font-size:48px; line-height:1; }
+.sel-title { font-family:'Fredoka One',cursive; font-size:23px; }
+.sel-card.solo   .sel-title { color:var(--p1); }
+.sel-card.versus .sel-title { color:var(--p2); }
+.sel-card.finger .sel-title { color:var(--green); }
+.sel-card.fist   .sel-title { color:var(--orange); }
+.sel-desc { font-size:12.5px; color:rgba(255,255,255,.42); text-align:center; line-height:1.6; }
+.sel-badge {
+  padding:5px 14px; border-radius:999px;
+  font-size:10px; font-weight:900; letter-spacing:2px; text-transform:uppercase;
+}
+.sel-card.solo   .sel-badge { background:rgba(79,195,247,.15);  color:var(--p1); }
+.sel-card.versus .sel-badge { background:rgba(244,143,177,.15); color:var(--p2); }
+.sel-card.finger .sel-badge { background:rgba(105,240,174,.15); color:var(--green); }
+.sel-card.fist   .sel-badge { background:rgba(255,171,64,.15);  color:var(--orange); }
+
+/* ══════════════════════════════════
    인게임 HUD
-════════════════════════════════ */
+══════════════════════════════════ */
 #hud {
   position:absolute; top:0; left:0; right:0; z-index:20;
-  display:none; /* 게임 시작 시 flex로 전환 */
-  justify-content:space-between; align-items:center;
-  padding:14px 22px;
-  pointer-events:none;
+  display:none; justify-content:space-between; align-items:center;
+  padding:14px 22px; pointer-events:none;
 }
-
-.hud-player {
-  display:flex; flex-direction:column; gap:2px;
-}
+.hud-player { display:flex; flex-direction:column; gap:2px; }
 .hud-player.p2-side { align-items:flex-end; }
-
-.hud-label {
-  font-size:11px; letter-spacing:3px; text-transform:uppercase;
-  color:rgba(255,255,255,.4);
-}
-.hud-score {
-  font-family:'Fredoka One',cursive; font-size:48px; color:#fff; line-height:1;
-}
-.p1-side .hud-score { text-shadow:0 0 20px var(--p1); }
-.p2-side .hud-score { text-shadow:0 0 20px var(--p2); }
+.hud-label { font-size:11px; letter-spacing:3px; text-transform:uppercase; color:rgba(255,255,255,.4); }
+.hud-score { font-family:'Fredoka One',cursive; font-size:48px; color:#fff; line-height:1; }
+.p1-side  .hud-score  { text-shadow:0 0 20px var(--p1); }
+.p2-side  .hud-score  { text-shadow:0 0 20px var(--p2); }
 .solo-side .hud-score { text-shadow:0 0 20px var(--gold); }
 .hud-combo { font-size:12px; font-weight:700; opacity:.65; }
-.p1-side .hud-combo   { color:var(--p1); }
-.p2-side .hud-combo   { color:var(--p2); }
+.p1-side  .hud-combo  { color:var(--p1); }
+.p2-side  .hud-combo  { color:var(--p2); }
 .solo-side .hud-combo { color:var(--gold); }
 
-/* 중앙 */
-.hud-center {
-  display:flex; flex-direction:column; align-items:center; gap:4px;
-}
+.hud-center { display:flex; flex-direction:column; align-items:center; gap:4px; }
 #timer-ring { position:relative; width:72px; height:72px; }
 #timer-ring svg { transform:rotate(-90deg); }
 #timer-ring circle.bg { fill:none; stroke:rgba(255,255,255,.08); stroke-width:5; }
 #timer-ring circle.fg {
-  fill:none; stroke:var(--gold); stroke-width:5;
-  stroke-linecap:round;
+  fill:none; stroke:var(--gold); stroke-width:5; stroke-linecap:round;
   stroke-dasharray:201; stroke-dashoffset:0;
   transition:stroke-dashoffset .9s linear, stroke .4s;
 }
 #timer-num {
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font-family:'Fredoka One',cursive; font-size:24px; color:#fff;
 }
-.hud-mode-badge {
-  font-size:10px; letter-spacing:3px; color:rgba(255,255,255,.3);
-  text-transform:uppercase;
-}
+.hud-mode-badge { font-size:10px; letter-spacing:3px; color:rgba(255,255,255,.3); text-transform:uppercase; }
 
-/* ── 일시정지 버튼 ── */
 #pause-btn {
-  position:absolute; top:16px; right:22px; z-index:21;
-  display:none;
-  width:40px; height:40px;
-  background:rgba(255,255,255,.07);
-  border:1.5px solid rgba(255,255,255,.15);
-  border-radius:12px;
-  cursor:pointer;
-  align-items:center; justify-content:center;
-  font-size:18px;
+  position:absolute; top:16px; right:22px; z-index:21; display:none;
+  width:40px; height:40px; background:rgba(255,255,255,.07);
+  border:1.5px solid rgba(255,255,255,.15); border-radius:12px;
+  cursor:pointer; align-items:center; justify-content:center;
+  font-size:18px; color:#fff; pointer-events:all;
   transition:background .15s, transform .1s;
-  color:#fff;
-  pointer-events:all;
 }
 #pause-btn:hover { background:rgba(255,255,255,.15); transform:scale(1.08); }
 
-/* ════════════════════════════════
-   오버레이 (카운트다운 / 일시정지 / 결과)
-════════════════════════════════ */
+/* ══════════════════════════════════
+   오버레이
+══════════════════════════════════ */
 .overlay {
-  position:absolute; inset:0; z-index:40;
-  display:none; flex-direction:column;
-  align-items:center; justify-content:center;
-  background:rgba(8,8,18,.82);
-  backdrop-filter:blur(10px);
+  position:absolute; inset:0; z-index:40; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(8,8,18,.82); backdrop-filter:blur(10px);
 }
 .overlay.show { display:flex; }
 
-/* 카운트다운 */
 #overlay-countdown { background:transparent; backdrop-filter:none; pointer-events:none; }
 #countdown-num {
   font-family:'Fredoka One',cursive; font-size:clamp(120px,22vw,200px);
-  color:var(--gold);
-  text-shadow:0 0 80px rgba(255,215,64,.5);
-  opacity:0;
+  color:var(--gold); text-shadow:0 0 80px rgba(255,215,64,.5); opacity:0;
 }
 
-/* 일시정지 */
 #overlay-pause .pause-title {
-  font-family:'Fredoka One',cursive; font-size:52px; color:#fff;
-  letter-spacing:2px;
+  font-family:'Fredoka One',cursive; font-size:52px; color:#fff; letter-spacing:2px;
 }
-#overlay-pause .pause-sub {
-  margin-top:8px; font-size:15px; color:rgba(255,255,255,.4);
-  letter-spacing:2px;
-}
+#overlay-pause .pause-sub { margin-top:8px; font-size:15px; color:rgba(255,255,255,.4); letter-spacing:2px; }
 .pause-btns { display:flex; flex-direction:column; gap:14px; margin-top:44px; }
-.pause-btn-item {
-  padding:14px 52px;
-  border-radius:999px;
+.ov-btn {
+  padding:14px 52px; border-radius:999px;
   font-family:'Fredoka One',cursive; font-size:20px;
-  cursor:pointer; border:none;
-  transition:transform .15s, box-shadow .15s;
+  cursor:pointer; border:none; transition:transform .15s, box-shadow .15s;
 }
-.pause-btn-item.primary {
-  background:var(--gold); color:#1a1a1a;
-  box-shadow:0 4px 24px rgba(255,215,64,.35);
-}
-.pause-btn-item.primary:hover { transform:scale(1.05); box-shadow:0 6px 32px rgba(255,215,64,.55); }
-.pause-btn-item.secondary {
-  background:rgba(255,255,255,.07); color:rgba(255,255,255,.7);
-  border:1.5px solid rgba(255,255,255,.15);
-}
-.pause-btn-item.secondary:hover { background:rgba(255,255,255,.13); transform:scale(1.02); }
+.ov-btn.primary   { background:var(--gold); color:#1a1a1a; box-shadow:0 4px 24px rgba(255,215,64,.35); }
+.ov-btn.primary:hover { transform:scale(1.05); box-shadow:0 6px 32px rgba(255,215,64,.55); }
+.ov-btn.secondary { background:rgba(255,255,255,.07); color:rgba(255,255,255,.7); border:1.5px solid rgba(255,255,255,.15); }
+.ov-btn.secondary:hover { background:rgba(255,255,255,.13); transform:scale(1.02); }
 
-/* 결과 */
 #overlay-result .result-title {
-  font-family:'Fredoka One',cursive; font-size:clamp(40px,7vw,72px);
+  font-family:'Fredoka One',cursive; font-size:clamp(38px,6.5vw,68px);
   animation:pulse 1s infinite alternate;
 }
 @keyframes pulse { from{transform:scale(1)} to{transform:scale(1.05)} }
-#overlay-result .result-sub {
-  margin-top:10px; font-size:18px; color:rgba(255,255,255,.55);
-}
-.result-scores {
-  display:flex; gap:48px; margin-top:32px;
-}
+#overlay-result .result-sub { margin-top:10px; font-size:18px; color:rgba(255,255,255,.55); }
+.result-scores { display:flex; gap:48px; margin-top:28px; }
 .result-player { display:flex; flex-direction:column; align-items:center; gap:6px; }
-.result-player .rp-label {
-  font-family:'Fredoka One',cursive; font-size:13px; letter-spacing:3px;
-}
-.result-player .rp-score {
-  font-family:'Fredoka One',cursive; font-size:52px; color:#fff;
-}
-.result-btns { display:flex; gap:14px; margin-top:40px; flex-wrap:wrap; justify-content:center; }
+.result-player .rp-label { font-family:'Fredoka One',cursive; font-size:13px; letter-spacing:3px; }
+.result-player .rp-score { font-family:'Fredoka One',cursive; font-size:52px; color:#fff; }
+.result-btns { display:flex; gap:14px; margin-top:36px; flex-wrap:wrap; justify-content:center; }
 
-/* ── 상태바 ── */
+#divider {
+  position:absolute; top:0; bottom:0; left:50%; width:2px; display:none;
+  background:linear-gradient(to bottom,transparent,rgba(255,255,255,.1) 30%,rgba(255,255,255,.1) 70%,transparent);
+  z-index:5; pointer-events:none;
+}
+
 #status {
   position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
-  z-index:20;
-  background:rgba(0,0,0,.55);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:999px; padding:7px 20px;
-  font-size:13px; color:rgba(255,255,255,.5);
-  letter-spacing:1px; backdrop-filter:blur(6px);
-  pointer-events:none; white-space:nowrap;
+  z-index:20; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.1);
+  border-radius:999px; padding:7px 20px; font-size:13px; color:rgba(255,255,255,.5);
+  letter-spacing:1px; backdrop-filter:blur(6px); pointer-events:none; white-space:nowrap;
 }
 
-/* ── 구분선 (2P) ── */
-#divider {
-  position:absolute; top:0; bottom:0; left:50%; width:2px;
-  background:linear-gradient(to bottom,transparent,rgba(255,255,255,.1) 30%,rgba(255,255,255,.1) 70%,transparent);
-  z-index:5; pointer-events:none; display:none;
+/* 슬래시 섬광 */
+@keyframes slashGlow {
+  0%   { opacity:1; transform:scaleX(1); }
+  100% { opacity:0; transform:scaleX(2.5); }
 }
 </style>
 </head>
 <body>
 <div id="game-container">
-
-  <!-- ── 배경 비디오 / 캔버스 ── -->
   <video id="webcam" autoplay playsinline></video>
   <canvas id="gameCanvas"></canvas>
 
-  <!-- ════ 모드 선택 화면 ════ -->
-  <div id="screen-menu">
+  <!-- STEP 1: 모드 선택 -->
+  <div class="menu-screen" id="screen-mode">
     <div class="menu-fruit-bg" id="menuFruitBg"></div>
     <div class="menu-logo">🍎 FRUIT<span>POPPER</span></div>
-    <div class="menu-sub">손가락으로 과일을 터뜨려라</div>
-    <div class="mode-cards">
-      <div class="mode-card solo" onclick="selectMode('solo')">
-        <div class="mode-icon">☝️</div>
-        <div class="mode-title">1인 플레이</div>
-        <div class="mode-desc">혼자서 60초 동안<br>최고 점수에 도전!</div>
-        <div class="mode-badge">SOLO</div>
+    <div class="menu-sub">손으로 과일을 터뜨려라</div>
+    <div class="step-indicator">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+    </div>
+    <div class="card-row">
+      <div class="sel-card solo" onclick="selectMode('solo')">
+        <div class="sel-icon">☝️</div>
+        <div class="sel-title">1인 플레이</div>
+        <div class="sel-desc">혼자서 60초 동안<br>최고 점수에 도전!</div>
+        <div class="sel-badge">SOLO</div>
       </div>
-      <div class="mode-card versus" onclick="selectMode('versus')">
-        <div class="mode-icon">🤜🤛</div>
-        <div class="mode-title">2인 대전</div>
-        <div class="mode-desc">두 손을 각각 P1·P2로 인식<br>60초 내 더 많이 터뜨리면 승!</div>
-        <div class="mode-badge">VS MODE</div>
+      <div class="sel-card versus" onclick="selectMode('versus')">
+        <div class="sel-icon">🤜🤛</div>
+        <div class="sel-title">2인 대전</div>
+        <div class="sel-desc">두 손을 P1·P2로 인식<br>더 많이 터뜨리면 승!</div>
+        <div class="sel-badge">VS MODE</div>
       </div>
     </div>
   </div>
 
-  <!-- ════ 인게임 HUD ════ -->
+  <!-- STEP 2: 도구 선택 -->
+  <div class="menu-screen hidden" id="screen-tool">
+    <div class="menu-fruit-bg" id="menuFruitBg2"></div>
+    <button class="back-btn" onclick="goBackToMode()">← 뒤로</button>
+    <div class="menu-logo">도구 선택</div>
+    <div class="menu-sub">어떻게 터뜨릴까요?</div>
+    <div class="step-indicator">
+      <div class="step-dot"></div>
+      <div class="step-dot active"></div>
+    </div>
+    <div class="card-row">
+      <div class="sel-card finger" onclick="selectTool('finger')">
+        <div class="sel-icon">☝️</div>
+        <div class="sel-title">검지 손가락</div>
+        <div class="sel-desc">검지 끝을 과일에 갖다 대면<br>바로 터짐!</div>
+        <div class="sel-badge">FINGER</div>
+      </div>
+      <div class="sel-card fist" onclick="selectTool('slash')">
+        <div class="sel-icon">🗡️</div>
+        <div class="sel-title">칼 슬래시</div>
+        <div class="sel-desc">손을 빠르게 휘두르면<br>칼날이 과일을 두 조각으로!</div>
+        <div class="sel-badge">SLASH</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
   <div id="hud">
     <div class="hud-player p1-side" id="hud-p1">
-      <div class="hud-label" id="hud-p1-label">PLAYER 1</div>
+      <div class="hud-label" id="hud-p1-label">SCORE</div>
       <div class="hud-score" id="hud-p1-score">0</div>
       <div class="hud-combo"  id="hud-p1-combo">x1 combo</div>
     </div>
@@ -331,149 +301,256 @@ canvas {
         </svg>
         <div id="timer-num">60</div>
       </div>
-      <div class="hud-mode-badge" id="hud-mode-badge">SOLO</div>
+      <div class="hud-mode-badge" id="hud-badge">SOLO · FINGER</div>
     </div>
     <div class="hud-player p2-side" id="hud-p2">
       <div class="hud-label" id="hud-p2-label">COMBO</div>
-      <div class="hud-score" id="hud-p2-score">0</div>
-      <div class="hud-combo"  id="hud-p2-combo">x1 combo</div>
+      <div class="hud-score" id="hud-p2-score">—</div>
+      <div class="hud-combo"  id="hud-p2-combo"></div>
     </div>
   </div>
 
-  <!-- 일시정지 버튼 -->
   <button id="pause-btn" onclick="togglePause()">⏸</button>
-
-  <!-- 구분선 (VS) -->
   <div id="divider"></div>
-
-  <!-- 상태바 -->
   <div id="status">📷 카메라 연결 중...</div>
 
-  <!-- ════ 오버레이: 카운트다운 ════ -->
-  <div class="overlay" id="overlay-countdown">
-    <div id="countdown-num"></div>
-  </div>
+  <div class="overlay" id="overlay-countdown"><div id="countdown-num"></div></div>
 
-  <!-- ════ 오버레이: 일시정지 ════ -->
   <div class="overlay" id="overlay-pause">
     <div class="pause-title">⏸ 일시정지</div>
     <div class="pause-sub">게임이 멈춰있습니다</div>
     <div class="pause-btns">
-      <button class="pause-btn-item primary" onclick="togglePause()">▶ 계속하기</button>
-      <button class="pause-btn-item secondary" onclick="goToMenu()">🏠 모드 선택으로</button>
+      <button class="ov-btn primary"   onclick="togglePause()">▶ 계속하기</button>
+      <button class="ov-btn secondary" onclick="goToMenu()">🏠 처음으로</button>
     </div>
   </div>
 
-  <!-- ════ 오버레이: 결과 ════ -->
   <div class="overlay" id="overlay-result">
-    <div class="result-title" id="result-title">🏆 결과</div>
-    <div class="result-sub"  id="result-sub"></div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-sub"   id="result-sub"></div>
     <div class="result-scores" id="result-scores"></div>
     <div class="result-btns">
-      <button class="pause-btn-item primary"   onclick="restartSameMode()">🔄 다시 하기</button>
-      <button class="pause-btn-item secondary" onclick="goToMenu()">🏠 모드 선택</button>
+      <button class="ov-btn primary"   onclick="restartSameMode()">🔄 다시 하기</button>
+      <button class="ov-btn secondary" onclick="goToMenu()">🏠 처음으로</button>
     </div>
   </div>
-
-</div><!-- #game-container -->
+</div>
 
 <script>
-// ════════════════════════════════
-//  전역 상수 / 상태
-// ════════════════════════════════
+// ══════════════════════════════════
+//  상수 / 상태
+// ══════════════════════════════════
 const GAME_DURATION = 60;
 const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌'];
+const SLASH_TRAIL_LEN  = 18;   // 궤적 저장 프레임 수
+const SLASH_SPEED_MIN  = 22;   // 슬래시 판정 최소 속도(px/frame)
+const SLASH_HIT_WIDTH  = 28;   // 칼날 판정 두께(px)
 
 const video    = document.getElementById('webcam');
 const canvas   = document.getElementById('gameCanvas');
 const ctx      = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 
-// 0:menu  1:countdown  2:playing  3:paused  4:over
-let STATE     = 0;
-let MODE      = 'solo'; // 'solo' | 'versus'
-let timeLeft  = GAME_DURATION;
+// ══════════════════════════════════
+//  Web Audio 사운드
+// ══════════════════════════════════
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// 슬래시 효과음: 날카로운 칙! 소리
+function playSlashSound(combo=1) {
+  const ac = getAudio();
+  const now = ac.currentTime;
+
+  // 노이즈 버퍼 (치찰음)
+  const bufLen = ac.sampleRate * 0.12;
+  const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i=0; i<bufLen; i++) data[i] = (Math.random()*2-1) * (1 - i/bufLen);
+
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+
+  // 밴드패스: 슬래시 느낌 주파수 강조
+  const bp = ac.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 2800 + combo * 200; // 콤보 높을수록 더 날카롭게
+  bp.Q.value = 1.8;
+
+  // 고역 강조
+  const hi = ac.createBiquadFilter();
+  hi.type = 'highshelf';
+  hi.frequency.value = 4000;
+  hi.gain.value = 10;
+
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.55, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+  src.connect(bp); bp.connect(hi); hi.connect(gain); gain.connect(ac.destination);
+  src.start(now);
+  src.stop(now + 0.12);
+}
+
+// 손가락 터뜨리기 효과음: 통통 튀는 팝!
+function playPopSound(combo=1) {
+  const ac = getAudio();
+  const now = ac.currentTime;
+
+  // 사인파 기반 팝 소리
+  const osc = ac.createOscillator();
+  osc.type = 'sine';
+  const baseFreq = 300 + combo * 40;
+  osc.frequency.setValueAtTime(baseFreq * 1.5, now);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, now + 0.08);
+
+  // 노이즈 레이어 (터지는 느낌)
+  const nBuf = ac.createBuffer(1, ac.sampleRate * 0.05, ac.sampleRate);
+  const nd = nBuf.getChannelData(0);
+  for (let i=0; i<nd.length; i++) nd[i] = (Math.random()*2-1) * (1 - i/nd.length);
+  const nSrc = ac.createBufferSource();
+  nSrc.buffer = nBuf;
+
+  const nGain = ac.createGain();
+  nGain.gain.setValueAtTime(0.3, now);
+  nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+  const gain = ac.createGain();
+  gain.gain.setValueAtTime(0.5, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+  osc.connect(gain); gain.connect(ac.destination);
+  nSrc.connect(nGain); nGain.connect(ac.destination);
+
+  osc.start(now); osc.stop(now + 0.1);
+  nSrc.start(now); nSrc.stop(now + 0.05);
+}
+
+// 콤보 3 이상 추가 효과음
+function playComboSound(combo) {
+  const ac = getAudio();
+  const now = ac.currentTime;
+  const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+  const count = Math.min(combo - 2, notes.length);
+  for (let i=0; i<count; i++) {
+    const osc = ac.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = notes[i];
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.18, now + i*0.06);
+    g.gain.exponentialRampToValueAtTime(0.001, now + i*0.06 + 0.12);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(now + i*0.06);
+    osc.stop(now + i*0.06 + 0.13);
+  }
+}
+
+// 0:modeSelect  1:toolSelect  2:countdown  3:playing  4:paused  5:over
+let STATE = 0;
+let MODE  = 'solo';
+let TOOL  = 'finger';
+let timeLeft      = GAME_DURATION;
 let timerInterval = null;
-let fruits    = [];
-let particles = [];
-let handFrames = [null, null]; // 최신 손 위치
+let fruits        = [];
+let particles     = [];
 
 const players = [
   { score:0, combo:1, lastPop:0, x:-999, y:-999, visible:false,
-    color:'#4FC3F7', dimColor:'rgba(79,195,247,0.18)' },
+    trail:[], lastSlashTime:0,
+    color:'#4FC3F7', dimColor:'rgba(79,195,247,0.13)' },
   { score:0, combo:1, lastPop:0, x:-999, y:-999, visible:false,
-    color:'#F48FB1', dimColor:'rgba(244,143,177,0.18)' },
+    trail:[], lastSlashTime:0,
+    color:'#F48FB1', dimColor:'rgba(244,143,177,0.13)' },
 ];
 
-// ════════════════════════════════
-//  메뉴 배경 과일
-// ════════════════════════════════
-(function buildMenuBg() {
-  const bg = document.getElementById('menuFruitBg');
-  const list = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌','✨','🌟'];
-  for (let i = 0; i < 22; i++) {
+// ── 배경 과일 ──
+function buildMenuFruits(id) {
+  const bg = document.getElementById(id);
+  const list = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌','✨'];
+  for (let i = 0; i < 20; i++) {
     const s = document.createElement('span');
     s.textContent = list[Math.floor(Math.random() * list.length)];
-    s.style.left  = Math.random() * 100 + 'vw';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.fontSize = (20 + Math.random() * 30) + 'px';
     s.style.animationDuration = (12 + Math.random() * 16) + 's';
-    s.style.animationDelay    = (-Math.random() * 20) + 's';
-    s.style.fontSize = (24 + Math.random() * 36) + 'px';
+    s.style.animationDelay   = (-Math.random() * 20) + 's';
     bg.appendChild(s);
   }
-})();
+}
+buildMenuFruits('menuFruitBg');
+buildMenuFruits('menuFruitBg2');
 
-// ════════════════════════════════
-//  모드 선택
-// ════════════════════════════════
+// ══════════════════════════════════
+//  화면 전환
+// ══════════════════════════════════
 function selectMode(mode) {
   MODE = mode;
-  document.getElementById('screen-menu').style.display = 'none';
-
-  // HUD 구성
-  const hudEl   = document.getElementById('hud');
-  const pauseEl = document.getElementById('pause-btn');
-  hudEl.style.display   = 'flex';
-  pauseEl.style.display = 'flex';
-
-  if (mode === 'solo') {
-    document.getElementById('hud-p1-label').textContent = 'SCORE';
-    document.getElementById('hud-p2-label').textContent = 'COMBO';
-    document.getElementById('hud-p1').className = 'hud-player solo-side';
-    document.getElementById('hud-p2').className = 'hud-player solo-side p2-side';
-    document.getElementById('hud-mode-badge').textContent = 'SOLO';
-    document.getElementById('divider').style.display = 'none';
-  } else {
-    document.getElementById('hud-p1-label').textContent = 'PLAYER 1';
-    document.getElementById('hud-p2-label').textContent = 'PLAYER 2';
-    document.getElementById('hud-p1').className = 'hud-player p1-side';
-    document.getElementById('hud-p2').className = 'hud-player p2-side';
-    document.getElementById('hud-mode-badge').textContent = 'VS';
-    document.getElementById('divider').style.display = 'block';
-  }
-
+  document.getElementById('screen-mode').classList.add('hidden');
+  document.getElementById('screen-tool').classList.remove('hidden');
+  STATE = 1;
+}
+function goBackToMode() {
+  document.getElementById('screen-tool').classList.add('hidden');
+  document.getElementById('screen-mode').classList.remove('hidden');
+  STATE = 0;
+}
+function selectTool(tool) {
+  TOOL = tool;
+  document.getElementById('screen-tool').classList.add('hidden');
+  setupHUD();
   resetGameData();
   startCountdown(beginGame);
 }
 
-// ════════════════════════════════
-//  게임 데이터 초기화
-// ════════════════════════════════
+function setupHUD() {
+  document.getElementById('hud').style.display       = 'flex';
+  document.getElementById('pause-btn').style.display = 'flex';
+  document.getElementById('hud-badge').textContent   =
+    (MODE==='solo'?'SOLO':'VS') + ' · ' + (TOOL==='finger'?'FINGER':'SLASH');
+
+  if (MODE === 'solo') {
+    document.getElementById('hud-p1').className          = 'hud-player solo-side';
+    document.getElementById('hud-p2').className          = 'hud-player solo-side p2-side';
+    document.getElementById('hud-p1-label').textContent  = 'SCORE';
+    document.getElementById('hud-p2-label').textContent  = 'COMBO';
+    document.getElementById('hud-p2-score').textContent  = '—';
+    document.getElementById('hud-p2-combo').textContent  = '';
+    document.getElementById('divider').style.display     = 'none';
+  } else {
+    document.getElementById('hud-p1').className          = 'hud-player p1-side';
+    document.getElementById('hud-p2').className          = 'hud-player p2-side';
+    document.getElementById('hud-p1-label').textContent  = 'PLAYER 1';
+    document.getElementById('hud-p2-label').textContent  = 'PLAYER 2';
+    document.getElementById('hud-p2-score').textContent  = '0';
+    document.getElementById('hud-p2-combo').textContent  = 'x1 combo';
+    document.getElementById('divider').style.display     = 'block';
+  }
+}
+
+// ══════════════════════════════════
+//  초기화
+// ══════════════════════════════════
 function resetGameData() {
-  players.forEach(p => { p.score=0; p.combo=1; p.lastPop=0; p.visible=false; });
+  players.forEach(p => { p.score=0; p.combo=1; p.lastPop=0; p.visible=false; p.trail=[]; p.lastSlashTime=0; });
   document.getElementById('hud-p1-score').textContent = '0';
-  document.getElementById('hud-p2-score').textContent = MODE==='solo' ? '—' : '0';
   document.getElementById('hud-p1-combo').textContent = 'x1 combo';
-  document.getElementById('hud-p2-combo').textContent = MODE==='solo' ? '' : 'x1 combo';
-  fruits = []; particles = [];
+  if (MODE === 'versus') {
+    document.getElementById('hud-p2-score').textContent = '0';
+    document.getElementById('hud-p2-combo').textContent = 'x1 combo';
+  }
+  fruits=[]; particles=[];
   timeLeft = GAME_DURATION;
   updateTimerRing(GAME_DURATION);
 }
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  카운트다운
-// ════════════════════════════════
+// ══════════════════════════════════
 function startCountdown(cb) {
-  STATE = 1;
+  STATE = 2;
   const ovEl  = document.getElementById('overlay-countdown');
   const numEl = document.getElementById('countdown-num');
   ovEl.classList.add('show');
@@ -496,57 +573,48 @@ function startCountdown(cb) {
   step();
 }
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  게임 시작
-// ════════════════════════════════
+// ══════════════════════════════════
 function beginGame() {
-  STATE = 2;
-  statusEl.textContent = MODE === 'solo'
-    ? '☝️ 검지 손가락으로 과일을 터뜨려라!'
-    : '✌️ 두 손으로 과일을 터뜨려라!';
-
+  STATE = 3;
+  statusEl.textContent = TOOL==='finger' ? '☝️ 검지로 터뜨려라!' : '🗡️ 손을 빠르게 휘둘러라!';
   clearInterval(timerInterval);
   timerInterval = setInterval(() => {
-    if (STATE !== 2) return;
+    if (STATE !== 3) return;
     timeLeft--;
     updateTimerRing(timeLeft);
     if (timeLeft <= 0) { clearInterval(timerInterval); endGame(); }
   }, 1000);
 }
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  일시정지
-// ════════════════════════════════
+// ══════════════════════════════════
 function togglePause() {
-  if (STATE === 2) {
-    STATE = 3;
+  if (STATE === 3) {
+    STATE = 4;
     document.getElementById('overlay-pause').classList.add('show');
     document.getElementById('pause-btn').textContent = '▶';
     statusEl.textContent = '⏸ 일시정지';
-  } else if (STATE === 3) {
-    STATE = 2;
+  } else if (STATE === 4) {
+    STATE = 3;
     document.getElementById('overlay-pause').classList.remove('show');
     document.getElementById('pause-btn').textContent = '⏸';
-    statusEl.textContent = MODE === 'solo'
-      ? '☝️ 검지 손가락으로 과일을 터뜨려라!'
-      : '✌️ 두 손으로 과일을 터뜨려라!';
+    statusEl.textContent = TOOL==='finger' ? '☝️ 검지로 터뜨려라!' : '🗡️ 손을 빠르게 휘둘러라!';
   }
 }
-
-// 키보드 ESC / Space 로도 일시정지
 document.addEventListener('keydown', e => {
-  if (e.code === 'Escape' || e.code === 'Space') {
-    if (STATE === 2 || STATE === 3) togglePause();
-  }
+  if ((e.code==='Escape'||e.code==='Space') && (STATE===3||STATE===4)) togglePause();
 });
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  게임 종료
-// ════════════════════════════════
+// ══════════════════════════════════
 function endGame() {
-  STATE = 4;
+  STATE = 5;
   clearInterval(timerInterval);
-  fruits = []; particles = [];
+  fruits=[]; particles=[];
 
   const titleEl  = document.getElementById('result-title');
   const subEl    = document.getElementById('result-sub');
@@ -556,290 +624,437 @@ function endGame() {
     titleEl.textContent = '🎉 게임 끝!';
     titleEl.style.color = 'var(--gold)';
     subEl.textContent   = `최종 점수: ${players[0].score}점`;
-    scoresEl.innerHTML  = `
-      <div class="result-player">
-        <div class="rp-label" style="color:var(--gold)">SCORE</div>
-        <div class="rp-score">${players[0].score}</div>
-      </div>`;
+    scoresEl.innerHTML  = `<div class="result-player">
+      <div class="rp-label" style="color:var(--gold)">SCORE</div>
+      <div class="rp-score">${players[0].score}</div></div>`;
   } else {
-    const s1 = players[0].score, s2 = players[1].score;
-    if (s1 > s2) {
-      titleEl.textContent = '🏆 Player 1 승리!';
-      titleEl.style.color = 'var(--p1)';
-      subEl.textContent   = `${s1 - s2}점 차이`;
-    } else if (s2 > s1) {
-      titleEl.textContent = '🏆 Player 2 승리!';
-      titleEl.style.color = 'var(--p2)';
-      subEl.textContent   = `${s2 - s1}점 차이`;
-    } else {
-      titleEl.textContent = '🤝 무승부!';
-      titleEl.style.color = 'var(--gold)';
-      subEl.textContent   = '완벽히 동점!';
-    }
+    const s1=players[0].score, s2=players[1].score;
+    if      (s1>s2) { titleEl.textContent='🏆 Player 1 승리!'; titleEl.style.color='var(--p1)'; subEl.textContent=`${s1-s2}점 차이`; }
+    else if (s2>s1) { titleEl.textContent='🏆 Player 2 승리!'; titleEl.style.color='var(--p2)'; subEl.textContent=`${s2-s1}점 차이`; }
+    else            { titleEl.textContent='🤝 무승부!';         titleEl.style.color='var(--gold)'; subEl.textContent='완벽히 동점!'; }
     scoresEl.innerHTML = `
-      <div class="result-player">
-        <div class="rp-label" style="color:var(--p1)">PLAYER 1</div>
-        <div class="rp-score">${s1}</div>
-      </div>
-      <div class="result-player">
-        <div class="rp-label" style="color:var(--p2)">PLAYER 2</div>
-        <div class="rp-score">${s2}</div>
-      </div>`;
+      <div class="result-player"><div class="rp-label" style="color:var(--p1)">PLAYER 1</div><div class="rp-score">${s1}</div></div>
+      <div class="result-player"><div class="rp-label" style="color:var(--p2)">PLAYER 2</div><div class="rp-score">${s2}</div></div>`;
   }
-
   document.getElementById('overlay-result').classList.add('show');
   statusEl.textContent = '게임 종료';
 }
 
 function restartSameMode() {
   document.getElementById('overlay-result').classList.remove('show');
-  resetGameData();
-  startCountdown(beginGame);
+  resetGameData(); startCountdown(beginGame);
 }
-
 function goToMenu() {
   clearInterval(timerInterval);
   ['overlay-pause','overlay-result','overlay-countdown'].forEach(id =>
     document.getElementById(id).classList.remove('show'));
-  document.getElementById('hud').style.display   = 'none';
-  document.getElementById('pause-btn').style.display = 'none';
-  document.getElementById('divider').style.display   = 'none';
-  document.getElementById('screen-menu').style.display = 'flex';
-  fruits = []; particles = [];
+  document.getElementById('hud').style.display        = 'none';
+  document.getElementById('pause-btn').style.display  = 'none';
+  document.getElementById('divider').style.display    = 'none';
+  document.getElementById('screen-tool').classList.add('hidden');
+  document.getElementById('screen-mode').classList.remove('hidden');
+  fruits=[]; particles=[];
   STATE = 0;
-  statusEl.textContent = '📷 카메라 대기 중';
+  statusEl.textContent = '✋ 모드를 선택하세요';
 }
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  타이머 링
-// ════════════════════════════════
+// ══════════════════════════════════
 function updateTimerRing(t) {
-  const circ = 2 * Math.PI * 32; // ~201
-  const frac = t / GAME_DURATION;
-  document.getElementById('timer-arc').style.strokeDashoffset = circ * (1 - frac);
-  document.getElementById('timer-arc').style.stroke = t <= 10 ? '#FF5252' : 'var(--gold)';
-  document.getElementById('timer-num').textContent  = Math.max(0, t);
+  const circ = 2 * Math.PI * 32;
+  document.getElementById('timer-arc').style.strokeDashoffset = circ*(1-t/GAME_DURATION);
+  document.getElementById('timer-arc').style.stroke = t<=10 ? '#FF5252' : 'var(--gold)';
+  document.getElementById('timer-num').textContent  = Math.max(0,t);
 }
 
-// ════════════════════════════════
+// ══════════════════════════════════
+//  손바닥 중심 (슬래시용)
+// ══════════════════════════════════
+function palmCenter(lm) {
+  // 손목(0)과 중지 근위부(9)의 중간
+  return { x:(lm[0].x+lm[9].x)/2, y:(lm[0].y+lm[9].y)/2 };
+}
+
+// ══════════════════════════════════
 //  Fruit 클래스
-// ════════════════════════════════
+// ══════════════════════════════════
 class Fruit {
   constructor() {
-    this.r        = 34 + Math.random() * 14;
-    this.x        = Math.random() * (canvas.width - 140) + 70;
-    this.y        = -60;
-    this.vy       = 2.0 + Math.random() * 2.4;
-    this.vx       = (Math.random() - 0.5) * 1.2;
-    this.spin     = (Math.random() - 0.5) * 0.055;
-    this.angle    = 0;
-    this.emoji    = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    this.popped   = false;
-    this.poppedBy = null;
-    this.opacity  = 1;
-    this.scale    = 1;
-    this.fs       = this.r * 1.7;
+    this.r      = 34 + Math.random()*14;
+    this.x      = Math.random()*(canvas.width-140)+70;
+    this.y      = -60;
+    this.vy     = 2.0 + Math.random()*2.4;
+    this.vx     = (Math.random()-0.5)*1.2;
+    this.spin   = (Math.random()-0.5)*0.055;
+    this.angle  = 0;
+    this.emoji  = EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+    this.popped = false; this.poppedBy=null;
+    this.opacity=1; this.scale=1;
+    this.fs = this.r*1.7;
   }
-
+  hitTest(px,py,extra=0) { return Math.hypot(this.x-px, this.y-py) < this.r+extra; }
   update() {
-    if (!this.popped) {
-      this.y += this.vy; this.x += this.vx; this.angle += this.spin;
-      const pCount = MODE === 'solo' ? 1 : 2;
-      for (let i = 0; i < pCount; i++) {
-        const p = players[i];
-        if (!p.visible) continue;
-        if (Math.hypot(this.x - p.x, this.y - p.y) < this.r + 18) {
-          this.pop(i); break;
-        }
-      }
-    } else {
-      this.opacity -= 0.055;
-      this.scale   += 0.07;
-    }
+    if (!this.popped) { this.y+=this.vy; this.x+=this.vx; this.angle+=this.spin; }
+    else { this.opacity-=0.055; this.scale+=0.07; }
   }
-
-  pop(idx) {
-    this.popped = true; this.poppedBy = idx;
-    const p = players[idx], now = Date.now();
-    p.combo = (now - p.lastPop < 800) ? Math.min(p.combo + 1, 10) : 1;
+  pop(idx, slashAngle=null) {
+    if (this.popped) return;
+    this.popped=true; this.poppedBy=idx;
+    this.slashAngle = slashAngle;
+    const p=players[idx], now=Date.now();
+    p.combo   = (now-p.lastPop<1000) ? Math.min(p.combo+1,10) : 1;
     p.lastPop = now;
-    p.score  += 10 * p.combo;
+    p.score  += 10*p.combo;
+    document.getElementById(idx===0?'hud-p1-score':'hud-p2-score').textContent = p.score;
+    document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent = `x${p.combo} combo`;
 
-    if (idx === 0) {
-      document.getElementById('hud-p1-score').textContent = p.score;
-      document.getElementById('hud-p1-combo').textContent = `x${p.combo} combo`;
-    } else {
-      document.getElementById('hud-p2-score').textContent = p.score;
-      document.getElementById('hud-p2-combo').textContent = `x${p.combo} combo`;
+    // 효과음
+    if (slashAngle !== null) playSlashSound(p.combo);
+    else                     playPopSound(p.combo);
+    if (p.combo >= 3)        playComboSound(p.combo);
+
+    // 파티클
+    if (slashAngle !== null) {
+      for (let i=0;i<6;i++) particles.push(new SlashHalf(this.x,this.y,this.emoji,slashAngle,p.color));
     }
-
-    for (let i = 0; i < 10; i++)
-      particles.push(new Particle(this.x, this.y, this.emoji, p.color));
+    for (let i=0;i<8;i++) particles.push(new Particle(this.x,this.y,this.emoji,p.color));
   }
-
   draw() {
-    if (this.opacity <= 0) return;
+    if (this.opacity<=0) return;
     ctx.save();
-    ctx.globalAlpha = Math.max(0, this.opacity);
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
-    ctx.scale(this.scale, this.scale);
-    ctx.font = `${this.fs}px serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(this.emoji, 0, 0);
-    if (this.popped && this.poppedBy !== null) {
-      ctx.font = 'bold 20px Nunito,sans-serif';
-      ctx.fillStyle = players[this.poppedBy].color;
-      ctx.fillText(`+${10 * players[this.poppedBy].combo}`, 0, -this.r - 8);
+    ctx.globalAlpha=Math.max(0,this.opacity);
+    ctx.translate(this.x,this.y); ctx.rotate(this.angle); ctx.scale(this.scale,this.scale);
+    ctx.font=`${this.fs}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(this.emoji,0,0);
+    if (this.popped && this.poppedBy!==null) {
+      ctx.font='bold 20px Nunito,sans-serif';
+      ctx.fillStyle=players[this.poppedBy].color;
+      ctx.fillText(`+${10*players[this.poppedBy].combo}`,0,-this.r-8);
     }
     ctx.restore();
   }
 }
 
-// ════════════════════════════════
-//  Particle 클래스
-// ════════════════════════════════
+// ══════════════════════════════════
+//  Particle
+// ══════════════════════════════════
 class Particle {
-  constructor(x, y, emoji, color) {
-    this.x = x; this.y = y;
-    this.vx = (Math.random() - 0.5) * 12;
-    this.vy = (Math.random() - 1.4) * 10;
-    this.life  = 1;
-    this.emoji = Math.random() < 0.25 ? '✨' : emoji;
-    this.size  = 12 + Math.random() * 14;
+  constructor(x,y,emoji,color) {
+    this.x=x; this.y=y;
+    this.vx=(Math.random()-0.5)*12; this.vy=(Math.random()-1.4)*10;
+    this.life=1;
+    this.emoji=Math.random()<0.25?'✨':emoji;
+    this.size=12+Math.random()*14;
   }
-  update() { this.x += this.vx; this.y += this.vy; this.vy += 0.38; this.life -= 0.038; }
+  update() { this.x+=this.vx; this.y+=this.vy; this.vy+=0.38; this.life-=0.038; }
   draw() {
-    if (this.life <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, this.life);
-    ctx.font = `${this.size}px serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(this.emoji, this.x, this.y);
+    if (this.life<=0) return;
+    ctx.save(); ctx.globalAlpha=Math.max(0,this.life);
+    ctx.font=`${this.size}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(this.emoji,this.x,this.y);
     ctx.restore();
   }
 }
 
-// ════════════════════════════════
-//  조준점
-// ════════════════════════════════
-function drawCrosshair(p, idx, solo) {
+// ══════════════════════════════════
+//  슬래시 궤적 그리기
+// ══════════════════════════════════
+function drawSlashTrail(p, idx, solo) {
   if (!p.visible) return;
-  const {x, y, color} = p;
-  const r = 20, gap = 7;
+
+  // VS 영역 배경
+  if (!solo) {
+    ctx.save(); ctx.fillStyle=p.dimColor;
+    ctx.fillRect(idx===0?0:canvas.width/2, 0, canvas.width/2, canvas.height);
+    ctx.restore();
+  }
+
+  const trail = p.trail;
+  if (trail.length < 2) {
+    // 궤적 없을 때 손 위치만 표시
+    ctx.save();
+    ctx.font='28px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.globalAlpha=0.7;
+    ctx.fillText('🗡️', p.x, p.y);
+    ctx.restore();
+    if (!solo) {
+      ctx.save(); ctx.font='bold 12px Fredoka One,cursive';
+      ctx.fillStyle=p.color; ctx.textAlign='center';
+      ctx.fillText(idx===0?'P1':'P2', p.x, p.y-26);
+      ctx.restore();
+    }
+    return;
+  }
+
+  // 속도 계산 (최근 2점)
+  const last = trail[trail.length-1];
+  const prev = trail[trail.length-2];
+  const spd  = Math.hypot(last.x-prev.x, last.y-prev.y);
+  const isFast = spd >= SLASH_SPEED_MIN;
+
+  // ── 칼날 궤적 그라디언트 ──
+  if (trail.length >= 2) {
+    for (let i=1; i<trail.length; i++) {
+      const t  = i / trail.length;
+      const a  = t * (isFast ? 0.9 : 0.35);
+      const lw = t * (isFast ? 7 : 3);
+      ctx.save();
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth   = lw;
+      ctx.lineCap     = 'round';
+      ctx.globalAlpha = a;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur  = isFast ? 18 : 4;
+      ctx.beginPath();
+      ctx.moveTo(trail[i-1].x, trail[i-1].y);
+      ctx.lineTo(trail[i].x,   trail[i].y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 빠를 때 흰 코어 라인
+    if (isFast) {
+      ctx.save();
+      ctx.strokeStyle='rgba(255,255,255,0.85)';
+      ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(trail[trail.length-3]?.x ?? trail[0].x, trail[trail.length-3]?.y ?? trail[0].y);
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+      ctx.restore();
+
+      // 끝에 스파크 이모지
+      ctx.save();
+      ctx.font='18px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.globalAlpha=0.9;
+      ctx.fillText('⚡', last.x, last.y);
+      ctx.restore();
+    }
+  }
+
+  // 손 끝 아이콘
+  ctx.save();
+  ctx.font=(isFast?'32px':'24px')+' serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.globalAlpha=isFast?1:0.65;
+  ctx.fillText('🗡️', p.x, p.y);
+  ctx.restore();
 
   if (!solo) {
-    ctx.save();
-    ctx.fillStyle = p.dimColor;
-    ctx.fillRect(idx === 0 ? 0 : canvas.width / 2, 0, canvas.width / 2, canvas.height);
+    ctx.save(); ctx.font='bold 12px Fredoka One,cursive';
+    ctx.fillStyle=p.color; ctx.textAlign='center';
+    ctx.fillText(idx===0?'P1':'P2', p.x, p.y-28);
     ctx.restore();
   }
+}
 
+// ══════════════════════════════════
+//  슬래시 충돌 판정
+// ══════════════════════════════════
+function processSlash(idx) {
+  const p = players[idx];
+  if (!p.visible || p.trail.length < 2) return;
+
+  const t1 = p.trail[p.trail.length-2];
+  const t2 = p.trail[p.trail.length-1];
+  const spd = Math.hypot(t2.x-t1.x, t2.y-t1.y);
+  if (spd < SLASH_SPEED_MIN) return;
+
+  const angle = Math.atan2(t2.y-t1.y, t2.x-t1.x);
+
+  fruits.forEach(f => {
+    if (f.popped) return;
+    // 선분-원 거리 체크
+    const dx=t2.x-t1.x, dy=t2.y-t1.y;
+    const len=Math.hypot(dx,dy);
+    if(len===0) return;
+    const t=Math.max(0,Math.min(1,((f.x-t1.x)*dx+(f.y-t1.y)*dy)/(len*len)));
+    const cx=t1.x+t*dx, cy=t1.y+t*dy;
+    const dist=Math.hypot(f.x-cx, f.y-cy);
+    if (dist < f.r + SLASH_HIT_WIDTH) {
+      f.pop(idx, angle);
+      // 슬래시 섬광 파티클
+      for(let i=0;i<4;i++) particles.push(new Particle(f.x,f.y,'✨',p.color));
+    }
+  });
+}
+
+// ══════════════════════════════════
+//  SlashHalf — 잘린 과일 조각
+// ══════════════════════════════════
+class SlashHalf {
+  constructor(x,y,emoji,slashAngle,color) {
+    // 칼 방향에 수직으로 두 조각이 튀어나감
+    const perp = slashAngle + Math.PI/2;
+    const side = Math.random()<0.5 ? 1 : -1;
+    const spd  = 4 + Math.random()*4;
+    this.x=x; this.y=y;
+    this.vx = Math.cos(perp)*spd*side + (Math.random()-0.5)*3;
+    this.vy = Math.sin(perp)*spd*side - 2 - Math.random()*3;
+    this.life = 1;
+    this.emoji = emoji;
+    this.size  = 20 + Math.random()*10;
+    this.spin  = (Math.random()-0.5)*0.25;
+    this.angle = 0;
+    this.clipSide = side; // +1 위쪽 반, -1 아래쪽 반
+    this.slashAngle = slashAngle;
+  }
+  update() {
+    this.x+=this.vx; this.y+=this.vy;
+    this.vy+=0.3; this.angle+=this.spin;
+    this.life-=0.03;
+  }
+  draw() {
+    if(this.life<=0) return;
+    ctx.save();
+    ctx.globalAlpha=Math.max(0,this.life);
+    ctx.translate(this.x,this.y);
+    ctx.rotate(this.angle);
+    // 클리핑으로 반쪽만 보이게
+    ctx.beginPath();
+    const cx2 = Math.cos(this.slashAngle)*60*this.clipSide;
+    const cy2 = Math.sin(this.slashAngle)*60*this.clipSide;
+    ctx.moveTo(0,0);
+    ctx.lineTo( cy2,-cx2); ctx.lineTo( cy2+cx2*2,-cx2+cy2*2);
+    ctx.lineTo(-cy2+cx2*2, cx2+cy2*2); ctx.lineTo(-cy2,cx2);
+    ctx.closePath(); ctx.clip();
+    ctx.font=`${this.size}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(this.emoji,0,0);
+    ctx.restore();
+  }
+}
+
+// ══════════════════════════════════
+//  검지 십자선
+// ══════════════════════════════════
+function drawCrosshair(p, idx, solo) {
+  if (!p.visible) return;
+  const {x,y,color}=p;
+  if (!solo) {
+    ctx.save(); ctx.fillStyle=p.dimColor;
+    ctx.fillRect(idx===0?0:canvas.width/2, 0, canvas.width/2, canvas.height);
+    ctx.restore();
+  }
+  const r=20,gap=7;
   ctx.save();
-  ctx.strokeStyle = color; ctx.lineWidth = 3;
-  ctx.shadowColor = color; ctx.shadowBlur = 14;
+  ctx.strokeStyle=color; ctx.lineWidth=3;
+  ctx.shadowColor=color; ctx.shadowBlur=14;
   ctx.beginPath();
   ctx.moveTo(x-r,y); ctx.lineTo(x-gap,y);
   ctx.moveTo(x+gap,y); ctx.lineTo(x+r,y);
   ctx.moveTo(x,y-r); ctx.lineTo(x,y-gap);
   ctx.moveTo(x,y+gap); ctx.lineTo(x,y+r);
   ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(x, y, gap-1, 0, Math.PI*2);
-  ctx.fillStyle = color; ctx.globalAlpha = 0.7; ctx.fill();
+  ctx.beginPath(); ctx.arc(x,y,gap-1,0,Math.PI*2);
+  ctx.fillStyle=color; ctx.globalAlpha=0.7; ctx.fill();
   ctx.restore();
-
-  ctx.save();
-  ctx.font = 'bold 12px Fredoka One,cursive';
-  ctx.fillStyle = color; ctx.textAlign = 'center';
-  ctx.fillText(solo ? '☝️' : (idx===0?'P1':'P2'), x, y - r - 6);
+  ctx.save(); ctx.font='bold 12px Fredoka One,cursive';
+  ctx.fillStyle=color; ctx.textAlign='center';
+  ctx.fillText(solo?'☝️':(idx===0?'P1':'P2'),x,y-r-6);
   ctx.restore();
 }
 
-// ════════════════════════════════
+
+// ══════════════════════════════════
 //  Mediapipe
-// ════════════════════════════════
-const hands = new Hands({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-});
-hands.setOptions({
-  maxNumHands: 2,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.55,
-  minTrackingConfidence: 0.55
-});
+// ══════════════════════════════════
+const hands = new Hands({ locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+hands.setOptions({ maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.55, minTrackingConfidence:0.55 });
 
 hands.onResults(results => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  players.forEach(p=>{ p.visible=false; });
 
-  // 손 위치 리셋
-  players.forEach(p => { p.visible = false; });
+  if (results.multiHandLandmarks?.length>0) {
+    const detected=results.multiHandLandmarks;
 
-  if (results.multiHandLandmarks?.length > 0) {
-    const detected = results.multiHandLandmarks;
-
-    if (MODE === 'solo') {
-      // 1P: 첫 번째 손만
-      const tip = detected[0][8];
-      players[0].x = tip.x * canvas.width;
-      players[0].y = tip.y * canvas.height;
-      players[0].visible = true;
+    if (MODE==='solo') {
+      const lm=detected[0];
+      // 슬래시: 손바닥 중심(0번), 검지: 8번 끝
+      const ref = TOOL==='slash' ? palmCenter(lm) : {x:lm[8].x, y:lm[8].y};
+      players[0].x=ref.x*canvas.width; players[0].y=ref.y*canvas.height;
+      players[0].visible=true;
     } else {
-      // 2P: x 기준 정렬 → 왼쪽=P1, 오른쪽=P2
-      const sorted = [...detected]
-        .map(lm => ({ lm, cx: lm[0].x }))
-        .sort((a,b) => a.cx - b.cx);
-      sorted.slice(0,2).forEach((item, i) => {
-        const tip = item.lm[8];
-        players[i].x = tip.x * canvas.width;
-        players[i].y = tip.y * canvas.height;
-        players[i].visible = true;
+      const sorted=[...detected].map(lm=>({lm,cx:lm[0].x})).sort((a,b)=>b.cx-a.cx);
+      sorted.slice(0,2).forEach((item,i)=>{
+        const lm=item.lm;
+        const ref = TOOL==='slash' ? palmCenter(lm) : {x:lm[8].x, y:lm[8].y};
+        players[i].x=ref.x*canvas.width; players[i].y=ref.y*canvas.height;
+        players[i].visible=true;
       });
     }
 
-    if (STATE <= 1) {
-      const need = MODE === 'solo' ? 1 : 2;
-      const found = Math.min(detected.length, need);
-      statusEl.textContent = found >= need
-        ? `✅ 손 감지 완료!`
-        : `✋ ${found}/${need} 손 감지 중...`;
+    if (STATE<=2) {
+      const need=MODE==='solo'?1:2;
+      const found=Math.min(detected.length,need);
+      statusEl.textContent=found>=need?'✅ 손 감지 완료!':`✋ ${found}/${need} 손 감지 중...`;
     }
   }
 
-  // 조준점
-  if (STATE >= 1 && STATE <= 3) {
-    if (MODE === 'solo') drawCrosshair(players[0], 0, true);
-    else { drawCrosshair(players[0], 0, false); drawCrosshair(players[1], 1, false); }
+  // 슬래시 trail 업데이트
+  if (TOOL==='slash') {
+    const pCount = MODE==='solo'?1:2;
+    for(let i=0;i<pCount;i++) {
+      const p=players[i];
+      if(p.visible) {
+        p.trail.push({x:p.x, y:p.y});
+        if(p.trail.length > SLASH_TRAIL_LEN) p.trail.shift();
+      } else {
+        if(p.trail.length>0) p.trail.shift(); // 손 사라지면 trail 서서히 소멸
+      }
+    }
   }
 
-  // 과일 (playing 상태에서만)
-  if (STATE === 2) {
-    if (Math.random() < 0.024) fruits.push(new Fruit());
+  // 시각 요소 그리기
+  if (STATE>=2&&STATE<=4) {
+    if (TOOL==='slash') {
+      if (MODE==='solo') drawSlashTrail(players[0],0,true);
+      else { drawSlashTrail(players[0],0,false); drawSlashTrail(players[1],1,false); }
+    } else {
+      if (MODE==='solo') drawCrosshair(players[0],0,true);
+      else { drawCrosshair(players[0],0,false); drawCrosshair(players[1],1,false); }
+    }
   }
 
-  fruits = fruits.filter(f => { f.update(); f.draw(); return f.y < canvas.height+100 && f.opacity > 0; });
-  particles = particles.filter(p => { p.update(); p.draw(); return p.life > 0; });
+  // 과일 로직
+  if (STATE===3) {
+    if (Math.random()<0.024) fruits.push(new Fruit());
+    const pCount=MODE==='solo'?1:2;
+
+    if (TOOL==='finger') {
+      fruits.forEach(f=>{
+        if (f.popped) return;
+        for (let i=0;i<pCount;i++) {
+          if (players[i].visible&&f.hitTest(players[i].x,players[i].y,18)) { f.pop(i,null); break; }
+        }
+      });
+    } else {
+      for (let i=0;i<pCount;i++) processSlash(i);
+    }
+  }
+
+  fruits    = fruits.filter(f=>{ f.update(); f.draw(); return f.y<canvas.height+100&&f.opacity>0; });
+  particles = particles.filter(p=>{ p.update(); p.draw(); return p.life>0; });
 });
 
-// ════════════════════════════════
+// ══════════════════════════════════
 //  카메라 시작
-// ════════════════════════════════
+// ══════════════════════════════════
 window.onload = () => {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  window.addEventListener('resize', () => {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  });
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  window.addEventListener('resize',()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
 
-  const camera = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 1280, height: 720
+  const camera=new Camera(video,{
+    onFrame: async()=>{ await hands.send({image:video}); },
+    width:1280, height:720
   });
-
   camera.start()
-    .then(() => { statusEl.textContent = '✋ 모드를 선택하세요'; })
-    .catch(() => { statusEl.textContent = '❌ 카메라 접근 실패 — 브라우저 권한을 확인하세요'; });
+    .then(()=>{ statusEl.textContent='✋ 모드를 선택하세요'; })
+    .catch(()=>{ statusEl.textContent='❌ 카메라 접근 실패 — 브라우저 권한을 확인하세요'; });
 };
 </script>
 </body>
