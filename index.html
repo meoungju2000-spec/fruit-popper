@@ -342,9 +342,24 @@ canvas {
 // ══════════════════════════════════
 const GAME_DURATION = 60;
 const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍉','🍑','🍒','🥝','🍌'];
-const SLASH_TRAIL_LEN  = 18;   // 궤적 저장 프레임 수
-const SLASH_SPEED_MIN  = 22;   // 슬래시 판정 최소 속도(px/frame)
-const SLASH_HIT_WIDTH  = 28;   // 칼날 판정 두께(px)
+const SLASH_TRAIL_LEN  = 18;
+const SLASH_SPEED_MIN  = 22;
+const SLASH_HIT_WIDTH  = 28;
+
+// 특수 아이템 설정
+const SPECIAL = {
+  bomb:  { emoji:'💣', prob:0.12, score:-30, color:'#FF5252' },
+  bonus: { emoji:'⭐', prob:0.08, score:50,  color:'#FFD740' },
+  ice:   { emoji:'🧊', prob:0.07, score:15,  color:'#80DEEA' },
+};
+
+// 레벨 구간 (경과 시간 기준)
+const LEVELS = [
+  { t:0,  spawnRate:0.022, speedMult:1.0,  label:'LV.1' },
+  { t:15, spawnRate:0.030, speedMult:1.25, label:'LV.2' },
+  { t:30, spawnRate:0.040, speedMult:1.55, label:'LV.3' },
+  { t:45, spawnRate:0.055, speedMult:1.90, label:'LV.4 🔥' },
+];
 
 const video    = document.getElementById('webcam');
 const canvas   = document.getElementById('gameCanvas');
@@ -448,7 +463,43 @@ function playComboSound(combo) {
   }
 }
 
-// 0:modeSelect  1:toolSelect  2:countdown  3:playing  4:paused  5:over
+// 폭탄 효과음: 둔탁한 쿵!
+function playBombSound() {
+  const ac = getAudio(); const now = ac.currentTime;
+  const osc = ac.createOscillator(); osc.type = 'sine';
+  osc.frequency.setValueAtTime(120, now);
+  osc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.8, now); g.gain.exponentialRampToValueAtTime(0.001, now+0.35);
+  osc.connect(g); g.connect(ac.destination);
+  osc.start(now); osc.stop(now+0.35);
+}
+
+// 얼음 효과음: 맑은 딩~
+function playIceSound() {
+  const ac = getAudio(); const now = ac.currentTime;
+  [880, 1108, 1320].forEach((f, i) => {
+    const osc = ac.createOscillator(); osc.type = 'sine'; osc.frequency.value = f;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.2, now+i*0.07); g.gain.exponentialRampToValueAtTime(0.001, now+i*0.07+0.5);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(now+i*0.07); osc.stop(now+i*0.07+0.5);
+  });
+}
+
+// 레벨업 효과음
+function playLevelUpSound() {
+  const ac = getAudio(); const now = ac.currentTime;
+  [523,659,784,1047].forEach((f,i) => {
+    const osc = ac.createOscillator(); osc.type = 'square'; osc.frequency.value = f;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.12, now+i*0.09); g.gain.exponentialRampToValueAtTime(0.001, now+i*0.09+0.18);
+    osc.connect(g); g.connect(ac.destination);
+    osc.start(now+i*0.09); osc.stop(now+i*0.09+0.18);
+  });
+}
+
+
 let STATE = 0;
 let MODE  = 'solo';
 let TOOL  = 'finger';
@@ -456,6 +507,12 @@ let timeLeft      = GAME_DURATION;
 let timerInterval = null;
 let fruits        = [];
 let particles     = [];
+
+// 특수 효과 상태
+let freezeUntil  = 0;   // 얼음: 이 시각까지 속도 절반
+let shakeFrames  = 0;   // 폭탄: 화면 흔들림 남은 프레임
+let currentLevel = 0;   // 현재 레벨 인덱스
+let levelBannerTimer = 0; // 레벨업 배너 표시 프레임
 
 const players = [
   { score:0, combo:1, lastPop:0, x:-999, y:-999, visible:false,
@@ -543,7 +600,10 @@ function resetGameData() {
   }
   fruits=[]; particles=[];
   timeLeft = GAME_DURATION;
+  freezeUntil = 0; shakeFrames = 0;
+  currentLevel = 0; levelBannerTimer = 0;
   updateTimerRing(GAME_DURATION);
+  updateLevelBadge(0);
 }
 
 // ══════════════════════════════════
@@ -573,6 +633,12 @@ function startCountdown(cb) {
   step();
 }
 
+function updateLevelBadge(lvIdx) {
+  const badge = document.getElementById('hud-badge');
+  if (badge) badge.textContent =
+    (MODE==='solo'?'SOLO':'VS') + ' · ' + (TOOL==='finger'?'FINGER':'SLASH') + ' · ' + LEVELS[lvIdx].label;
+}
+
 // ══════════════════════════════════
 //  게임 시작
 // ══════════════════════════════════
@@ -584,6 +650,18 @@ function beginGame() {
     if (STATE !== 3) return;
     timeLeft--;
     updateTimerRing(timeLeft);
+
+    // 레벨 체크
+    const elapsed = GAME_DURATION - timeLeft;
+    let newLevel = 0;
+    for (let i=0; i<LEVELS.length; i++) { if (elapsed >= LEVELS[i].t) newLevel = i; }
+    if (newLevel !== currentLevel) {
+      currentLevel = newLevel;
+      levelBannerTimer = 90; // 약 3초
+      updateLevelBadge(currentLevel);
+      playLevelUpSound();
+    }
+
     if (timeLeft <= 0) { clearInterval(timerInterval); endGame(); }
   }, 1000);
 }
@@ -677,61 +755,121 @@ function palmCenter(lm) {
 }
 
 // ══════════════════════════════════
-//  Fruit 클래스
+//  Fruit 클래스 (특수 아이템 포함)
 // ══════════════════════════════════
 class Fruit {
-  constructor() {
-    this.r      = 34 + Math.random()*14;
+  constructor(type='normal') {
+    const lv    = LEVELS[currentLevel];
+    this.type   = type;
+    this.r      = type==='normal' ? 34+Math.random()*14 : 36;
     this.x      = Math.random()*(canvas.width-140)+70;
     this.y      = -60;
-    this.vy     = 2.0 + Math.random()*2.4;
+    this.vy     = (2.0+Math.random()*2.4) * lv.speedMult * (Date.now()<freezeUntil?0.5:1);
     this.vx     = (Math.random()-0.5)*1.2;
     this.spin   = (Math.random()-0.5)*0.055;
     this.angle  = 0;
-    this.emoji  = EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
     this.popped = false; this.poppedBy=null;
     this.opacity=1; this.scale=1;
-    this.fs = this.r*1.7;
+
+    // 타입별 이모지/설정
+    if (type==='normal') {
+      this.emoji = EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+      this.scoreVal = 10;
+      this.glowColor = null;
+    } else {
+      const s = SPECIAL[type];
+      this.emoji    = s.emoji;
+      this.scoreVal = s.score;
+      this.glowColor= s.color;
+    }
+    // 보너스 과일: 빠르게 사라짐
+    this.lifeTime = type==='bonus' ? 180 : Infinity;
+    this.age = 0;
+    this.fs   = this.r*1.7;
   }
+
   hitTest(px,py,extra=0) { return Math.hypot(this.x-px, this.y-py) < this.r+extra; }
+
   update() {
-    if (!this.popped) { this.y+=this.vy; this.x+=this.vx; this.angle+=this.spin; }
-    else { this.opacity-=0.055; this.scale+=0.07; }
+    if (!this.popped) {
+      const frozen = Date.now() < freezeUntil;
+      this.y += this.vy * (frozen ? 0.4 : 1);
+      this.x += this.vx * (frozen ? 0.4 : 1);
+      this.angle += this.spin;
+      this.age++;
+      // 보너스 과일 시간 초과
+      if (this.age > this.lifeTime) { this.opacity -= 0.08; }
+    } else {
+      this.opacity -= 0.055; this.scale += 0.07;
+    }
   }
+
   pop(idx, slashAngle=null) {
     if (this.popped) return;
     this.popped=true; this.poppedBy=idx;
     this.slashAngle = slashAngle;
-    const p=players[idx], now=Date.now();
-    p.combo   = (now-p.lastPop<1000) ? Math.min(p.combo+1,10) : 1;
-    p.lastPop = now;
-    p.score  += 10*p.combo;
-    document.getElementById(idx===0?'hud-p1-score':'hud-p2-score').textContent = p.score;
-    document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent = `x${p.combo} combo`;
+    const p = players[idx], now = Date.now();
 
-    // 효과음
-    if (slashAngle !== null) playSlashSound(p.combo);
-    else                     playPopSound(p.combo);
-    if (p.combo >= 3)        playComboSound(p.combo);
-
-    // 파티클
-    if (slashAngle !== null) {
-      for (let i=0;i<6;i++) particles.push(new SlashHalf(this.x,this.y,this.emoji,slashAngle,p.color));
+    if (this.type === 'bomb') {
+      // 폭탄: 점수 감소 + 흔들림
+      p.score = Math.max(0, p.score + this.scoreVal);
+      p.combo = 1; // 콤보 리셋
+      document.getElementById(idx===0?'hud-p1-score':'hud-p2-score').textContent = p.score;
+      document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent = 'BOOM! 💥';
+      shakeFrames = 18;
+      playBombSound();
+      for (let i=0;i<14;i++) particles.push(new Particle(this.x,this.y,'💥','#FF5252'));
+    } else if (this.type === 'ice') {
+      // 얼음: 3초 슬로우
+      p.score += this.scoreVal * p.combo;
+      freezeUntil = Date.now() + 3000;
+      document.getElementById(idx===0?'hud-p1-score':'hud-p2-score').textContent = p.score;
+      document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent = '❄️ FREEZE!';
+      setTimeout(()=>{ document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent=`x${p.combo} combo`; }, 1500);
+      playIceSound();
+      for (let i=0;i<10;i++) particles.push(new Particle(this.x,this.y,'❄️','#80DEEA'));
+    } else {
+      // 일반 / 보너스
+      p.combo   = (now-p.lastPop<1000) ? Math.min(p.combo+1,10) : 1;
+      p.lastPop = now;
+      p.score  += this.scoreVal * p.combo;
+      document.getElementById(idx===0?'hud-p1-score':'hud-p2-score').textContent = p.score;
+      document.getElementById(idx===0?'hud-p1-combo':'hud-p2-combo').textContent = `x${p.combo} combo`;
+      if (slashAngle!==null) playSlashSound(p.combo); else playPopSound(p.combo);
+      if (p.combo>=3) playComboSound(p.combo);
+      if (slashAngle!==null) {
+        for (let i=0;i<6;i++) particles.push(new SlashHalf(this.x,this.y,this.emoji,slashAngle,p.color));
+      }
+      for (let i=0;i<8;i++) particles.push(new Particle(this.x,this.y,this.emoji,p.color));
     }
-    for (let i=0;i<8;i++) particles.push(new Particle(this.x,this.y,this.emoji,p.color));
   }
+
   draw() {
     if (this.opacity<=0) return;
     ctx.save();
     ctx.globalAlpha=Math.max(0,this.opacity);
     ctx.translate(this.x,this.y); ctx.rotate(this.angle); ctx.scale(this.scale,this.scale);
+
+    // 특수 아이템 글로우
+    if (this.glowColor && !this.popped) {
+      ctx.shadowColor = this.glowColor;
+      ctx.shadowBlur  = 20 + Math.sin(Date.now()*0.006)*8;
+    }
+    // 보너스 과일: 깜빡임
+    if (this.type==='bonus' && this.age>120) {
+      ctx.globalAlpha = Math.max(0, this.opacity * (Math.sin(Date.now()*0.03)*.5+.5));
+    }
+
     ctx.font=`${this.fs}px serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(this.emoji,0,0);
+
     if (this.popped && this.poppedBy!==null) {
+      ctx.shadowBlur=0;
       ctx.font='bold 20px Nunito,sans-serif';
-      ctx.fillStyle=players[this.poppedBy].color;
-      ctx.fillText(`+${10*players[this.poppedBy].combo}`,0,-this.r-8);
+      const label = this.type==='bomb' ? '-30💥' : this.type==='ice' ? '+15❄️' : `+${this.scoreVal*players[this.poppedBy].combo}`;
+      ctx.fillStyle = this.glowColor || players[this.poppedBy].color;
+      ctx.fillText(label, 0, -this.r-8);
     }
     ctx.restore();
   }
@@ -1025,9 +1163,18 @@ hands.onResults(results => {
 
   // 과일 로직
   if (STATE===3) {
-    if (Math.random()<0.024) fruits.push(new Fruit());
-    const pCount=MODE==='solo'?1:2;
+    const lv = LEVELS[currentLevel];
+    const r  = Math.random();
+    if (r < lv.spawnRate) {
+      // 특수 아이템 확률 판정
+      const sr = Math.random();
+      if      (sr < SPECIAL.bomb.prob)  fruits.push(new Fruit('bomb'));
+      else if (sr < SPECIAL.bomb.prob + SPECIAL.bonus.prob) fruits.push(new Fruit('bonus'));
+      else if (sr < SPECIAL.bomb.prob + SPECIAL.bonus.prob + SPECIAL.ice.prob) fruits.push(new Fruit('ice'));
+      else    fruits.push(new Fruit('normal'));
+    }
 
+    const pCount=MODE==='solo'?1:2;
     if (TOOL==='finger') {
       fruits.forEach(f=>{
         if (f.popped) return;
@@ -1042,6 +1189,41 @@ hands.onResults(results => {
 
   fruits    = fruits.filter(f=>{ f.update(); f.draw(); return f.y<canvas.height+100&&f.opacity>0; });
   particles = particles.filter(p=>{ p.update(); p.draw(); return p.life>0; });
+
+  // ── 얼음 슬로우 오버레이 ──
+  if (Date.now() < freezeUntil) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(128,222,234,0.08)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.font='bold 18px Nunito,sans-serif';
+    ctx.fillStyle='rgba(128,222,234,0.7)';
+    ctx.textAlign='center';
+    ctx.fillText('❄️  FREEZE  ❄️', canvas.width/2, canvas.height-50);
+    ctx.restore();
+  }
+
+  // ── 화면 흔들림 (폭탄) ──
+  if (shakeFrames > 0) {
+    shakeFrames--;
+    const s = shakeFrames * 1.2;
+    canvas.style.transform = `scaleX(-1) translate(${(Math.random()-0.5)*s}px,${(Math.random()-0.5)*s}px)`;
+  } else {
+    canvas.style.transform = 'scaleX(-1)';
+  }
+
+  // ── 레벨업 배너 ──
+  if (levelBannerTimer > 0) {
+    levelBannerTimer--;
+    const alpha = Math.min(1, levelBannerTimer/20);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font='bold 48px Fredoka One,cursive';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#FFD740';
+    ctx.shadowColor='#FFD740'; ctx.shadowBlur=30;
+    ctx.fillText(`🔥 ${LEVELS[currentLevel].label} 🔥`, canvas.width/2, canvas.height/2);
+    ctx.restore();
+  }
 });
 
 // ══════════════════════════════════
